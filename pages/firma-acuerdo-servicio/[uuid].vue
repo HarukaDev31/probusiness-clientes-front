@@ -238,12 +238,12 @@
    import { useSpinner } from '~/composables/commons/useSpinner'
    import { useModal } from '~/composables/commons/useModal'
   import { useServiceContract } from '~/composables/useServiceContract'
+  const { showSuccess, showError } = useModal()
    // Importación dinámica de pdf.js para evitar problemas de SSR
    let pdfjsLib = null
    
    // Composables
    const { showSpinner, hideSpinner, withSpinner } = useSpinner()
-   const { showError } = useModal()
    const { 
      getServiceContract, 
      signServiceContract, 
@@ -705,8 +705,14 @@
       }, 5000)
       
       // Usar el composable para firmar el contrato (solo la firma)
-      await signServiceContract(uuid as string, signatureImageData.value as unknown as string)
-       
+     const response= await signServiceContract(uuid as string, signatureImageData.value as unknown as string)
+     if (response.success) {
+      showSuccess('Firma guardada', 'La firma se ha guardado correctamente')
+      console.log('🔧 Firma guardada:', response.data)
+     } else {
+      showError('Error al guardar', 'No se pudo guardar la firma. Inténtalo de nuevo.')
+      console.error('❌ Error al guardar firma:', response.error)
+     }
      } catch (err) {
        console.error('Error guardando firma:', err)
        showError('Error al guardar', 'No se pudo guardar la firma. Inténtalo de nuevo.')
