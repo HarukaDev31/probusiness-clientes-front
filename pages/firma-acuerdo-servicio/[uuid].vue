@@ -1,23 +1,39 @@
 <template>
-    <div class="min-h-screen  w-3/4 mx-auto min-w-fit">
+    <div class="min-h-screen w-3/4 mx-auto min-w-fit bg-gray-50 dark:bg-gray-900">
       <!-- Header con controles -->
       <UCard class="m-4 shadow-lg">
         <template #header>
-          <div class="text-center">
-              <h1 class="text-2xl font-bold text-gray-900">
-                {{ hasSignedContract ? 'Contrato de Servicio Firmado' : 'Firma de Acuerdo de Servicio' }}
-              </h1>
-              <p v-if="hasSignedContract" class="text-sm text-green-600 mt-2">
-                ✅ Este contrato ya ha sido firmado
-              </p>
+          <div class="flex justify-between items-center">
+            <div class="text-center flex-1">
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+                  {{ hasSignedContract ? 'Contrato de Servicio Firmado' : 'Firma de Acuerdo de Servicio' }}
+                </h1>
+                <p v-if="hasSignedContract" class="text-sm text-green-600 dark:text-green-400 mt-2">
+                  ✅ Este contrato ya ha sido firmado
+                </p>
+            </div>
+            
+            <!-- Botón de tema oscuro/claro -->
+            <div class="flex items-center gap-2">
+              <UIcon name="i-heroicons-sun" class="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" class="sr-only peer" :checked="isDark" @change="toggleDarkMode" />
+                <div class="w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full peer-checked:bg-primary-600 transition-colors"></div>
+                <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transform peer-checked:translate-x-4 transition-transform" />
+              </label>
+              <UIcon name="i-heroicons-moon" class="w-5 h-5 text-gray-500 dark:text-gray-400" />
+            </div>
           </div>
         </template>
         
          <!-- Información de páginas -->
          <template #footer>
-           <div class="flex justify-center items-center py-2">
-               <span class="text-sm text-gray-600">
+           <div class="flex flex-col items-center py-2 space-y-1">
+               <span class="text-sm text-gray-600 dark:text-gray-400">
                {{ totalPages }} páginas - Scroll para navegar
+               </span>
+               <span v-if="isMobile" class="text-xs text-gray-500 dark:text-gray-500">
+               📱 Pellizca para hacer zoom
                </span>
            </div>
          </template>
@@ -26,33 +42,47 @@
       <!-- Contenedor principal del PDF -->
       <div class="mx-4 mb-4">
         <UCard class="shadow-lg">
-           <div class="relative bg-gray-100 rounded-lg overflow-hidden" ref="pdfContainer">
+           <div class="relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden" ref="pdfContainer">
              <!-- Contenedor con scroll mejorado para todas las páginas -->
-             <div class="overflow-auto max-h-[85vh] p-4 relative" ref="scrollContainer">
+             <div 
+               class="overflow-auto max-h-[85vh] p-4 relative prevent-zoom" 
+               ref="scrollContainer"
+               @touchstart="handleTouchStart"
+               @touchmove="handleTouchMove"
+               @touchend="handleTouchEnd"
+             >
+               <!-- Indicador de zoom para móvil -->
+               <div 
+                 v-if="isMobile && isZooming" 
+                 class="absolute top-4 right-4 z-20 bg-black bg-opacity-75 text-white px-3 py-2 rounded-lg text-sm font-medium zoom-indicator"
+               >
+                 {{ Math.round(currentScale * 100) }}%
+               </div>
+               
                <!-- Skeleton mientras se carga el PDF (overlay) -->
-               <div v-if="!isPdfLoaded" class="absolute inset-0 z-10 bg-gray-100 flex flex-col items-center justify-center space-y-4">
+               <div v-if="!isPdfLoaded" class="absolute inset-0 z-10 bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center space-y-4">
                  <!-- Indicador de progreso para mobile -->
-                 <div v-if="isMobile" class="w-full max-w-md bg-gray-200 rounded-full h-2 mb-4">
+                 <div v-if="isMobile" class="w-full max-w-md bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-4">
                    <div class="bg-blue-600 h-2 rounded-full animate-pulse" style="width: 60%"></div>
                  </div>
                  
                  <div 
                    v-for="pageNum in (totalPages || 3)" 
                    :key="`skeleton-${pageNum}`"
-                   class="bg-white animate-pulse rounded-lg shadow-lg p-4 sm:p-8 w-full max-w-2xl aspect-[3/4] relative"
+                   class="bg-white dark:bg-gray-700 animate-pulse rounded-lg shadow-lg p-4 sm:p-8 w-full max-w-2xl aspect-[3/4] relative"
                  >
                    <!-- Simular contenido de página -->
                    <div class="space-y-3 sm:space-y-4 h-full">
                      <!-- Título -->
-                     <div class="h-4 sm:h-6 bg-gray-200 rounded w-3/4"></div>
+                     <div class="h-4 sm:h-6 bg-gray-200 dark:bg-gray-600 rounded w-3/4"></div>
                      
                      <!-- Líneas de texto -->
                      <div class="space-y-2">
-                       <div class="h-3 sm:h-4 bg-gray-200 rounded w-full"></div>
-                       <div class="h-3 sm:h-4 bg-gray-200 rounded w-5/6"></div>
-                       <div class="h-3 sm:h-4 bg-gray-200 rounded w-4/5"></div>
-                       <div class="h-3 sm:h-4 bg-gray-200 rounded w-full"></div>
-                       <div class="h-3 sm:h-4 bg-gray-200 rounded w-3/4"></div>
+                       <div class="h-3 sm:h-4 bg-gray-200 dark:bg-gray-600 rounded w-full"></div>
+                       <div class="h-3 sm:h-4 bg-gray-200 dark:bg-gray-600 rounded w-5/6"></div>
+                       <div class="h-3 sm:h-4 bg-gray-200 dark:bg-gray-600 rounded w-4/5"></div>
+                       <div class="h-3 sm:h-4 bg-gray-200 dark:bg-gray-600 rounded w-full"></div>
+                       <div class="h-3 sm:h-4 bg-gray-200 dark:bg-gray-600 rounded w-3/4"></div>
                      </div>
                      
                      <!-- Espacio -->
@@ -60,22 +90,22 @@
                      
                      <!-- Más líneas -->
                      <div class="space-y-2">
-                       <div class="h-3 sm:h-4 bg-gray-200 rounded w-full"></div>
-                       <div class="h-3 sm:h-4 bg-gray-200 rounded w-5/6"></div>
-                       <div class="h-3 sm:h-4 bg-gray-200 rounded w-4/5"></div>
-                       <div class="h-3 sm:h-4 bg-gray-200 rounded w-full"></div>
-                       <div class="h-3 sm:h-4 bg-gray-200 rounded w-2/3"></div>
+                       <div class="h-3 sm:h-4 bg-gray-200 dark:bg-gray-600 rounded w-full"></div>
+                       <div class="h-3 sm:h-4 bg-gray-200 dark:bg-gray-600 rounded w-5/6"></div>
+                       <div class="h-3 sm:h-4 bg-gray-200 dark:bg-gray-600 rounded w-4/5"></div>
+                       <div class="h-3 sm:h-4 bg-gray-200 dark:bg-gray-600 rounded w-full"></div>
+                       <div class="h-3 sm:h-4 bg-gray-200 dark:bg-gray-600 rounded w-2/3"></div>
                      </div>
                      
                      <!-- Más contenido para llenar la página -->
                      <div class="space-y-2">
-                       <div class="h-3 sm:h-4 bg-gray-200 rounded w-4/5"></div>
-                       <div class="h-3 sm:h-4 bg-gray-200 rounded w-full"></div>
-                       <div class="h-3 sm:h-4 bg-gray-200 rounded w-3/4"></div>
+                       <div class="h-3 sm:h-4 bg-gray-200 dark:bg-gray-600 rounded w-4/5"></div>
+                       <div class="h-3 sm:h-4 bg-gray-200 dark:bg-gray-600 rounded w-full"></div>
+                       <div class="h-3 sm:h-4 bg-gray-200 dark:bg-gray-600 rounded w-3/4"></div>
                      </div>
                      
                      <!-- Indicador de página -->
-                     <div class="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 text-gray-400 text-xs sm:text-sm">
+                     <div class="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 text-gray-400 dark:text-gray-500 text-xs sm:text-sm">
                        Página {{ pageNum }}
                      </div>
                    </div>
@@ -130,7 +160,7 @@
       <!-- Controles flotantes centrados -->
       <div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 flex gap-4">
         <!-- Controles de zoom (solo en desktop) -->
-        <div v-if="!isMobile" class="bg-white rounded-lg shadow-lg p-3 flex items-center gap-2">
+        <div v-if="!isMobile" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 flex items-center gap-2">
           <UButton 
             @click="zoomOut" 
             :disabled="currentScale <= minScale"
@@ -140,7 +170,7 @@
             icon="i-heroicons-minus"
           >
           </UButton>
-          <span class="text-sm text-gray-600 min-w-[50px] text-center">
+          <span class="text-sm text-gray-600 dark:text-gray-300 min-w-[50px] text-center">
             {{ Math.round(currentScale * 100) }}%
           </span>
           <UButton 
@@ -155,7 +185,7 @@
         </div>
         
         <!-- Controles de firma (solo si no está firmado) -->
-        <div v-if="!hasSignedContract" class="bg-white rounded-lg shadow-lg p-3 flex items-center gap-2">
+        <div v-if="!hasSignedContract" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 flex items-center gap-2">
           <UButton 
             @click="toggleSignatureMode" 
             :color="isSigningMode ? 'error' : 'primary'"
@@ -192,7 +222,7 @@
         </div>
         
         <!-- Controles solo para descarga (si está firmado) -->
-        <div v-if="hasSignedContract" class="bg-white rounded-lg shadow-lg p-3 flex items-center gap-2">
+        <div v-if="hasSignedContract" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 flex items-center gap-2">
           <UButton 
             @click="downloadPDF" 
             color="info"
@@ -209,7 +239,7 @@
       <Transition name="slide">
         <div 
           v-if="false"
-          class="fixed top-20 right-4 z-50 bg-blue-500 text-white p-4 rounded-lg shadow-lg max-w-sm"
+          class="fixed top-20 right-4 z-50 bg-blue-500 dark:bg-blue-600 text-white p-4 rounded-lg shadow-lg max-w-sm"
         >
           <h3 class="font-semibold mb-2">📍 Seleccione la posición</h3>
           <p class="text-sm mb-3">
@@ -239,6 +269,14 @@
    import { useModal } from '~/composables/commons/useModal'
   import { useServiceContract } from '~/composables/useServiceContract'
   const { showSuccess, showError } = useModal()
+  
+  // Dark mode
+  const colorMode = useColorMode()
+  const isDark = computed(() => colorMode.value === 'dark')
+  
+  const toggleDarkMode = () => {
+    colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
+  }
    // Importación dinámica de pdf.js para evitar problemas de SSR
    let pdfjsLib = null
    
@@ -279,8 +317,15 @@
    // Estado general
   const pdfUrl = computed(() => contractUrl.value)
   
-  // Detectar si es móvil
+   // Detectar si es móvil
   const isMobile = ref(false)
+  
+  // Variables para zoom táctil
+  const touchStartDistance = ref(0)
+  const touchStartScale = ref(1)
+  const isZooming = ref(false)
+  const lastTouchTime = ref(0)
+  const renderTimeout = ref(null)
    
    // Estado de la firma
    const hasSignature = ref(false)
@@ -315,7 +360,66 @@
   const setCanvasRef = (el, pageNum) => {
     if (el) {
       pdfCanvases.value[pageNum] = el
-      console.log(`🔧 Canvas ${pageNum} creado:`, el)
+    }
+  }
+  
+  // Funciones para zoom táctil
+  const getDistance = (touch1, touch2) => {
+    const dx = touch1.clientX - touch2.clientX
+    const dy = touch1.clientY - touch2.clientY
+    return Math.sqrt(dx * dx + dy * dy)
+  }
+  
+  const handleTouchStart = (event) => {
+    if (event.touches.length === 2) {
+      // Iniciar zoom con dos dedos
+      event.preventDefault()
+      isZooming.value = true
+      touchStartDistance.value = getDistance(event.touches[0], event.touches[1])
+      touchStartScale.value = currentScale.value
+      lastTouchTime.value = Date.now()
+    }
+  }
+  
+  // Función optimizada para renderizado durante zoom táctil
+  const debouncedRender = () => {
+    if (renderTimeout.value) {
+      clearTimeout(renderTimeout.value)
+    }
+    renderTimeout.value = setTimeout(() => {
+      renderAllPages()
+      if (hasSignature.value) {
+        positionSignatureOnLastPage()
+      }
+    }, 50) // Debounce de 50ms para mejor rendimiento
+  }
+  
+  const handleTouchMove = (event) => {
+    if (event.touches.length === 2 && isZooming.value) {
+      event.preventDefault()
+      
+      const currentDistance = getDistance(event.touches[0], event.touches[1])
+      const scaleChange = currentDistance / touchStartDistance.value
+      const newScale = touchStartScale.value * scaleChange
+      
+      // Aplicar límites de zoom
+      const clampedScale = Math.max(minScale.value, Math.min(maxScale.value, newScale))
+      
+      // Solo actualizar si hay un cambio significativo (más suave)
+      if (Math.abs(clampedScale - currentScale.value) > 0.02) {
+        currentScale.value = clampedScale
+        
+        // Usar renderizado optimizado
+        debouncedRender()
+      }
+    }
+  }
+  
+  const handleTouchEnd = (event) => {
+    if (event.touches.length < 2) {
+      isZooming.value = false
+      touchStartDistance.value = 0
+      touchStartScale.value = 1
     }
   }
   
@@ -330,7 +434,6 @@
        const pdfjs = await import('pdfjs-dist')
        pdfjsLib = markRaw(pdfjs) // Usar markRaw para pdfjsLib también
        
-       console.log('🔧 PDF.js importado:', pdfjsLib.version)
        
        // Configurar worker - ajusta la ruta según tu configuración
        pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.min.mjs'
@@ -708,26 +811,7 @@
          throw new Error('No hay firma disponible para guardar')
        }
        
-       console.log('🔧 Enviando solo la firma, tamaño:', signatureImageData.value.length)
        
-       // Crear un elemento temporal para verificar la firma
-       const testImg = document.createElement('img')
-       testImg.src = signatureImageData.value
-       testImg.style.position = 'fixed'
-       testImg.style.top = '10px'
-       testImg.style.right = '10px'
-       testImg.style.width = '150px'
-       testImg.style.border = '2px solid green'
-       testImg.style.zIndex = '9999'
-       testImg.title = 'Vista previa de la firma que se enviará'
-       document.body.appendChild(testImg)
-       
-       // Remover la imagen de prueba después de 5 segundos
-       setTimeout(() => {
-         if (testImg.parentNode) {
-           testImg.parentNode.removeChild(testImg)
-         }
-       }, 5000)
        
        // Usar el composable para firmar el contrato (solo la firma)
       const response= await signServiceContract(uuid as string, signatureImageData.value as unknown as string)
@@ -745,7 +829,6 @@
        console.error('❌ Error al guardar firma:', response.message)
       }
       } catch (err) {
-        console.error('Error guardando firma:', err)
         showError('Error al guardar', 'No se pudo guardar la firma. Inténtalo de nuevo.')
       }
     }
@@ -755,7 +838,6 @@
     try {
       await downloadContract()
     } catch (err) {
-      console.error('Error descargando PDF:', err)
       showError('Error al descargar', 'No se pudo descargar el documento.')
     }
   }
@@ -789,7 +871,6 @@
        
        loadPDF()
      } catch (err) {
-       console.error('Error en onMounted:', err)
        showError('Error de inicialización', 'No se pudo inicializar el visor de PDF')
      }
    })
@@ -803,6 +884,11 @@
      
      // Remover listener de resize
      window.removeEventListener('resize', handleResize)
+     
+     // Limpiar timeout de renderizado
+     if (renderTimeout.value) {
+       clearTimeout(renderTimeout.value)
+     }
    })
   </script>
   
@@ -841,5 +927,20 @@
   
   .pointer-events-auto {
     pointer-events: auto !important;
+  }
+  
+  /* Mejorar experiencia táctil */
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+  
+  /* Prevenir zoom del navegador durante el zoom personalizado */
+  .prevent-zoom {
+    touch-action: pan-x pan-y;
+  }
+  
+  /* Transición suave para el indicador de zoom */
+  .zoom-indicator {
+    transition: opacity 0.2s ease-in-out;
   }
   </style>
