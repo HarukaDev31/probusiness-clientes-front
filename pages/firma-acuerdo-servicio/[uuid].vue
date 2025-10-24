@@ -1,5 +1,5 @@
 <template>
-    <div class="min-h-screen bg-gray-50 w-3/4 mx-auto min-w-fit">
+    <div class="min-h-screen  w-3/4 mx-auto min-w-fit">
       <!-- Header con controles -->
       <UCard class="m-4 shadow-lg">
         <template #header>
@@ -673,51 +673,82 @@
   }
   
   
+   // Función para redirigir a WhatsApp
+   const redirectToWhatsApp = (phoneNumber: string = '+51992583703') => {
+     try {
+       // Limpiar el número de teléfono (remover espacios, guiones, etc.)
+       const cleanNumber = phoneNumber.replace(/[\s\-\(\)]/g, '')
+       
+       // Crear mensaje personalizado para el contexto de firma
+       const message = encodeURIComponent(
+         '¡Hola! He firmado exitosamente el acuerdo de servicio. ¿Podrían confirmar la recepción del documento firmado?'
+       )
+       
+       // Crear URL de WhatsApp
+       const whatsappUrl = `https://wa.me/${cleanNumber}?text=${message}`
+       
+       console.log('🔧 Redirigiendo a WhatsApp:', whatsappUrl)
+       
+       // Abrir WhatsApp en nueva ventana
+       window.open(whatsappUrl, '_blank')
+       
+     } catch (error) {
+       console.error('❌ Error redirigiendo a WhatsApp:', error)
+       showError('Error de redirección', 'No se pudo abrir WhatsApp. Inténtalo manualmente.')
+     }
+   }
+
    // Guardar firma
    const saveSignature = async () => {
      try {
-      console.log('Guardando firma para UUID:', uuid)
-      
-      // Verificar que tenemos la firma
-      if (!signatureImageData.value) {
-        throw new Error('No hay firma disponible para guardar')
-      }
-      
-      console.log('🔧 Enviando solo la firma, tamaño:', signatureImageData.value.length)
-      
-      // Crear un elemento temporal para verificar la firma
-      const testImg = document.createElement('img')
-      testImg.src = signatureImageData.value
-      testImg.style.position = 'fixed'
-      testImg.style.top = '10px'
-      testImg.style.right = '10px'
-      testImg.style.width = '150px'
-      testImg.style.border = '2px solid green'
-      testImg.style.zIndex = '9999'
-      testImg.title = 'Vista previa de la firma que se enviará'
-      document.body.appendChild(testImg)
-      
-      // Remover la imagen de prueba después de 5 segundos
-      setTimeout(() => {
-        if (testImg.parentNode) {
-          testImg.parentNode.removeChild(testImg)
-        }
-      }, 5000)
-      
-      // Usar el composable para firmar el contrato (solo la firma)
-     const response= await signServiceContract(uuid as string, signatureImageData.value as unknown as string)
-     if (response.success) {
-      showSuccess('Firma guardada', 'La firma se ha guardado correctamente')
-      console.log('🔧 Firma guardada:', response.data)
-     } else {
-      showError('Error al guardar', 'No se pudo guardar la firma. Inténtalo de nuevo.')
-      console.error('❌ Error al guardar firma:', response.error)
-     }
-     } catch (err) {
-       console.error('Error guardando firma:', err)
+       console.log('Guardando firma para UUID:', uuid)
+       
+       // Verificar que tenemos la firma
+       if (!signatureImageData.value) {
+         throw new Error('No hay firma disponible para guardar')
+       }
+       
+       console.log('🔧 Enviando solo la firma, tamaño:', signatureImageData.value.length)
+       
+       // Crear un elemento temporal para verificar la firma
+       const testImg = document.createElement('img')
+       testImg.src = signatureImageData.value
+       testImg.style.position = 'fixed'
+       testImg.style.top = '10px'
+       testImg.style.right = '10px'
+       testImg.style.width = '150px'
+       testImg.style.border = '2px solid green'
+       testImg.style.zIndex = '9999'
+       testImg.title = 'Vista previa de la firma que se enviará'
+       document.body.appendChild(testImg)
+       
+       // Remover la imagen de prueba después de 5 segundos
+       setTimeout(() => {
+         if (testImg.parentNode) {
+           testImg.parentNode.removeChild(testImg)
+         }
+       }, 5000)
+       
+       // Usar el composable para firmar el contrato (solo la firma)
+      const response= await signServiceContract(uuid as string, signatureImageData.value as unknown as string)
+      if (response.success) {
+       showSuccess('Firma guardada', 'La firma se ha guardado correctamente')
+       console.log('🔧 Firma guardada:', response.data)
+       
+       // Redirigir a WhatsApp después de una firma exitosa
+       setTimeout(() => {
+         redirectToWhatsApp('+51992583703')
+       }, 2000) // Esperar 2 segundos para que el usuario vea el mensaje de éxito
+       
+      } else {
        showError('Error al guardar', 'No se pudo guardar la firma. Inténtalo de nuevo.')
-     }
-   }
+       console.error('❌ Error al guardar firma:', response.message)
+      }
+      } catch (err) {
+        console.error('Error guardando firma:', err)
+        showError('Error al guardar', 'No se pudo guardar la firma. Inténtalo de nuevo.')
+      }
+    }
   
   // Descargar PDF original
   const downloadPDF = async () => {

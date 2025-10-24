@@ -31,6 +31,31 @@ export function useServiceContract() {
   const { showSpinner, hideSpinner, withSpinner } = useSpinner()
   const { showError, showSuccess } = useModal()
 
+  // Función para redirigir a WhatsApp
+  const redirectToWhatsApp = (phoneNumber: string = '+51992583703') => {
+    try {
+      // Limpiar el número de teléfono (remover espacios, guiones, etc.)
+      const cleanNumber = phoneNumber.replace(/[\s\-\(\)]/g, '')
+      
+      // Crear mensaje personalizado para el contexto de firma
+      const message = encodeURIComponent(
+        '¡Hola! He firmado exitosamente el acuerdo de servicio. ¿Podrían confirmar la recepción del documento firmado?'
+      )
+      
+      // Crear URL de WhatsApp
+      const whatsappUrl = `https://wa.me/${cleanNumber}?text=${message}`
+      
+      console.log('🔧 Redirigiendo a WhatsApp:', whatsappUrl)
+      
+      // Abrir WhatsApp en nueva ventana
+      window.open(whatsappUrl, '_blank')
+      
+    } catch (error) {
+      console.error('❌ Error redirigiendo a WhatsApp:', error)
+      showError('Error de redirección', 'No se pudo abrir WhatsApp. Inténtalo manualmente.')
+    }
+  }
+
   // Estado reactivo
   const contractData = ref<ServiceContractData | null>(null)
   const isLoading = ref(false)
@@ -129,6 +154,11 @@ export function useServiceContract() {
         'El contrato se ha firmado y guardado exitosamente.'
       )
 
+      // Redirigir a WhatsApp después de una firma exitosa
+      setTimeout(() => {
+        redirectToWhatsApp('+51992583703')
+      }, 2000) // Esperar 2 segundos para que el usuario vea el mensaje de éxito
+
       return response
 
     } catch (err: any) {
@@ -211,6 +241,7 @@ export function useServiceContract() {
     signServiceContract,
     downloadContract,
     clearContract,
-    clearError
+    clearError,
+    redirectToWhatsApp
   }
 }
