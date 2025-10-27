@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen w-3/4 mx-auto min-w-fit bg-gray-50">
+  <div class="min-h-screen w-full bg-gray-50 flex flex-col">
     <!-- Header con controles -->
     <UCard class="m-4 shadow-lg">
       <template #header>
@@ -29,12 +29,12 @@
     </UCard>
 
     <!-- Contenedor principal del PDF -->
-    <div class="mx-4 mb-4">
-      <UCard class="shadow-lg">
-         <div class="relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden" ref="pdfContainer">
+    <div class="mx-4 mb-4 flex-grow">
+      <UCard class="shadow-lg h-full">
+         <div class="relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden h-full" ref="pdfContainer">
            <!-- Contenedor con scroll mejorado para todas las páginas -->
            <div 
-             class="overflow-auto max-h-[85vh] p-4 relative pdf-container" 
+             class="overflow-auto h-[85vh] p-4 relative pdf-container" 
              ref="scrollContainer"
              @touchstart="handleTouchStart"
              @touchmove="handleTouchMove"
@@ -473,31 +473,34 @@ const initPdfJs = async () => {
      // Verificar que tenemos canvas disponibles
      console.log('🔧 Canvas disponibles:', Object.keys(pdfCanvases.value))
      
-     // Calcular escala automática basada en la primera página
-     const firstPage = await pdfDoc.value.getPage(1)
-     const viewport = firstPage.getViewport({ scale: 1 })
-     
-     console.log('🔧 Viewport original:', {
-       width: viewport.width,
-       height: viewport.height
-     })
-     
-     const containerWidth = pdfContainer.value.clientWidth - 64
-     const scaleX = containerWidth / viewport.width
-     const scale = Math.max(scaleX, minScale.value)
-     
-     console.log('🔧 Escala calculada:', {
-       containerWidth,
-       scaleX,
-       scale,
-       currentScale: currentScale.value,
-       isMobile: isMobile.value
-     })
-     
-     if (currentScale.value === 1.0) {
-       currentScale.value = Math.min(scale, maxScale.value)
-       console.log('🔧 Escala actualizada a:', currentScale.value)
-     }
+    // Calcular escala automática basada en la primera página
+    const firstPage = await pdfDoc.value.getPage(1)
+    const viewport = firstPage.getViewport({ scale: 1 })
+    
+    console.log('🔧 Viewport original:', {
+      width: viewport.width,
+      height: viewport.height
+    })
+    
+    const containerWidth = pdfContainer.value.clientWidth - (isMobile.value ? 32 : 64)
+    const scaleX = containerWidth / viewport.width
+    
+    // En móvil, aseguramos que la escala inicial sea al menos 1.0
+    const initialScale = isMobile.value ? Math.max(1.0, scaleX) : Math.max(scaleX, minScale.value)
+    const scale = Math.min(initialScale, maxScale.value)
+    
+    console.log('🔧 Escala calculada:', {
+      containerWidth,
+      scaleX,
+      scale,
+      currentScale: currentScale.value,
+      isMobile: isMobile.value
+    })
+    
+    if (currentScale.value === 1.0) {
+      currentScale.value = scale
+      console.log('🔧 Escala actualizada a:', currentScale.value)
+    }
      
      // Renderizar todas las páginas
      for (let pageNum = 1; pageNum <= totalPages.value; pageNum++) {
