@@ -31,10 +31,10 @@
     <!-- Contenedor principal del PDF -->
     <div class="mx-4 mb-4">
       <UCard class="shadow-lg">
-         <div class="relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden" ref="pdfContainer">
+         <div class="relative bg-gray-100 dark:bg-gray-800 rounded-lg" ref="pdfContainer">
            <!-- Contenedor con scroll mejorado para todas las páginas -->
            <div 
-             class="overflow-auto max-h-[85vh] p-4 relative" 
+             class="overflow-auto max-h-[85vh] p-4 relative pdf-container" 
              ref="scrollContainer"
              @touchstart="handleTouchStart"
              @touchmove="handleTouchMove"
@@ -312,13 +312,15 @@ const debouncedRender = () => {
 const handleTouchMove = (event) => {
   if (event.touches.length === 2 && isZooming.value) {
     event.preventDefault()
+    event.stopPropagation()
     
     const currentDistance = getDistance(event.touches[0], event.touches[1])
     const scaleChange = currentDistance / touchStartDistance.value
     const newScale = touchStartScale.value * scaleChange
     
-    // Aplicar límites de zoom
-    const clampedScale = Math.max(minScale.value, Math.min(maxScale.value, newScale))
+    // Aplicar límites de zoom con rango extendido para móvil
+    const mobileMaxScale = isMobile.value ? 5.0 : maxScale.value
+    const clampedScale = Math.max(minScale.value, Math.min(mobileMaxScale, newScale))
     
     // Solo actualizar si hay un cambio significativo (más suave)
     if (Math.abs(clampedScale - currentScale.value) > 0.02) {
@@ -731,8 +733,15 @@ const downloadPDF = async () => {
 
 /* Canvas responsivo */
 canvas {
-  max-width: 100%;
+  max-width: none;
   height: auto;
+  margin: 0 auto;
+}
+
+/* Contenedor del PDF con zoom */
+.pdf-container {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Hover effects */
