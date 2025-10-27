@@ -26,37 +26,44 @@
             </div>
           </div>
 
-          <!-- PDF con object para mejor compatibilidad móvil -->
-          <div v-if="isLoaded" class="w-full pdf-container">
-            <!-- Opción 1: Usando object (mejor para móviles) -->
-            <object
-              :data="pdfUrl"
-              type="application/pdf"
-              class="w-full pdf-viewer"
-            >
-              <!-- Fallback para navegadores que no soportan object -->
-              <embed
-                :src="pdfUrl"
-                type="application/pdf"
-                class="w-full pdf-viewer"
-              />
-              
-              <!-- Fallback final si ninguno funciona -->
-              <div class="p-8 text-center">
-                <p class="text-gray-600 mb-4">
-                  No se puede mostrar el PDF en este navegador.
-                </p>
-                <UButton
-                  @click="downloadPDF"
-                  color="primary"
-                  variant="solid"
-                  icon="i-heroicons-arrow-down-tray"
-                >
-                  Descargar PDF
-                </UButton>
-              </div>
-            </object>
-          </div>
+           <!-- PDF -->
+           <div v-if="isLoaded" class="w-full pdf-container">
+             <!-- Si es móvil, usar iframe con Google Docs Viewer -->
+             <iframe
+               v-if="isMobile"
+               :src="pdfUrl"
+               class="w-full pdf-viewer"
+               frameborder="0"
+               scrolling="auto"
+             ></iframe>
+             
+             <!-- Si es desktop, usar object con fallbacks -->
+             <object
+               v-else
+               :data="pdfUrl"
+               type="application/pdf"
+               class="w-full pdf-viewer"
+             >
+               <embed
+                 :src="pdfUrl"
+                 type="application/pdf"
+                 class="w-full pdf-viewer"
+               />
+               <div class="p-8 text-center">
+                 <p class="text-gray-600 mb-4">
+                   No se puede mostrar el PDF en este navegador.
+                 </p>
+                 <UButton
+                   @click="downloadPDF"
+                   color="primary"
+                   variant="solid"
+                   icon="i-heroicons-arrow-down-tray"
+                 >
+                   Descargar PDF
+                 </UButton>
+               </div>
+             </object>
+           </div>
         </div>
       </UCard>
     </div>
@@ -127,7 +134,19 @@ definePageMeta({
 })
 
 const isLoaded = ref(false)
-const pdfUrl = computed(() => contractUrl.value)
+const isMobile = ref(false)
+
+// URL del PDF con fallback para móviles
+const pdfUrl = computed(() => {
+  const baseUrl = contractUrl.value
+  
+  // Usar Google Docs Viewer para móviles
+  if (isMobile.value && baseUrl) {
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(baseUrl)}&embedded=true`
+  }
+  
+  return baseUrl
+})
 
 // useOverlay para modales
 const overlay = useOverlay()
@@ -199,6 +218,10 @@ const downloadPDF = async () => {
 // Lifecycle
 onMounted(async () => {
   colorMode.preference = 'light'
+  
+  // Detectar si es móvil
+  isMobile.value = window.innerWidth <= 768
+  
   await loadPDF()
 })
 
@@ -220,6 +243,40 @@ onUnmounted(() => {
     min-height: 400px;
     -webkit-overflow-scrolling: touch;
     touch-action: manipulation;
+  }
+}
+.pdf-container {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.pdf-viewer {
+  height: 85vh;
+  min-height: 500px;
+  width: 100%;
+  border: none;
+}
+
+/* Estilos específicos para móviles */
+@media (max-width: 768px) {
+  .pdf-viewer {
+    height: 70vh;
+    min-height: 400px;
+  }
+  
+  /* Forzar renderizado en móviles */
+  .pdf-container {
+    -webkit-overflow-scrolling: touch;
+    overflow-y: auto;
+  }
+}
+
+/* Para iOS específicamente */
+@supports (-webkit-touch-callout: none) {
+  .pdf-viewer {
+    position: relative;
+    display: block;
   }
 }
 </style>
