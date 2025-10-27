@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen w-full bg-gray-50 flex flex-col">
     <!-- Header con controles -->
-    <UCard class="m-4 shadow-lg">
+    <UCard class="m-4 shadow-lg" ref="headerCard">
       <template #header>
         <div class="text-center">
               <h1 class="text-2xl font-bold text-gray-900">
@@ -21,9 +21,7 @@
              <span class="text-sm text-gray-600 dark:text-gray-400">
              {{ totalPages }} páginas - Scroll para navegar
              </span>
-             <span v-if="isMobile" class="text-xs text-gray-500 dark:text-gray-500">
-             📱 Pellizca para hacer zoom
-             </span>
+             
          </div>
        </template>
     </UCard>
@@ -34,7 +32,7 @@
          <div class="relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden h-full flex justify-center items-stretch" ref="pdfContainer">
            <!-- Contenedor con scroll mejorado para todas las páginas -->
           <div 
-            :class="['overflow-x-auto overflow-y-auto h-[85vh] p-4 relative pdf-container w-full', { dragging: isDragging }]"
+            :class="['overflow-x-auto overflow-y-visible p-4 relative pdf-container w-full', { dragging: isDragging }]"
              ref="scrollContainer"
              @touchstart="handleTouchStart"
              @touchmove="handleTouchMove"
@@ -252,6 +250,7 @@ definePageMeta({
 
 // Referencias DOM
 const pdfContainer = ref(null)
+const headerCard = ref(null)
 const scrollContainer = ref(null)
 const pdfViewer = ref(null)
 const pdfCanvases = ref({}) // Objeto para almacenar múltiples canvas
@@ -744,8 +743,16 @@ const downloadPDF = async () => {
      // Esperar a que el DOM esté completamente montado
      await nextTick()
      
-     // Agregar listener para resize
-     window.addEventListener('resize', handleResize)
+    // Agregar listener para resize
+    window.addEventListener('resize', handleResize)
+
+    // En móvil, enfocar el contenedor scrollable para que el header salga de vista
+    if (isMobile.value && scrollContainer.value) {
+      // pequeño delay para asegurar layout
+      setTimeout(() => {
+        scrollContainer.value.scrollIntoView({ block: 'start', behavior: 'instant' })
+      }, 0)
+    }
      
      loadPDF()
    } catch (err) {
