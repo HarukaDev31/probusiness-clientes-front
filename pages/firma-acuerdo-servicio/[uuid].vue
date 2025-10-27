@@ -29,16 +29,20 @@
     </UCard>
 
     <!-- Contenedor principal del PDF -->
-    <div class="mx-4 mb-4 flex-grow">
-      <UCard class="shadow-lg h-full">
-         <div class="relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden h-full" ref="pdfContainer">
+    <div class="mx-4 mb-4 flex-grow flex justify-center">
+      <UCard class="shadow-lg h-full w-full">
+         <div class="relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden h-full flex justify-center items-stretch" ref="pdfContainer">
            <!-- Contenedor con scroll mejorado para todas las páginas -->
-           <div 
-             class="overflow-auto h-[85vh] p-4 relative pdf-container" 
+          <div 
+            :class="['overflow-x-auto overflow-y-auto h-[85vh] p-4 relative pdf-container w-full', { dragging: isDragging }]"
              ref="scrollContainer"
              @touchstart="handleTouchStart"
              @touchmove="handleTouchMove"
              @touchend="handleTouchEnd"
+            @pointerdown="handlePointerDown"
+            @pointermove="handlePointerMove"
+            @pointerup="handlePointerUp"
+            @pointercancel="handlePointerUp"
            >
              <!-- Indicador de zoom para móvil -->
              <div 
@@ -101,13 +105,14 @@
                </div>
              </div>
              
-             <!-- PDF renderizado (siempre presente en el DOM) -->
-             <div class="flex flex-col items-center space-y-4" ref="pdfViewer">
+            <!-- PDF renderizado (siempre presente en el DOM) -->
+            <div class="flex flex-col items-center space-y-4 w-max" ref="pdfViewer" style="margin-left: 0;">
                <!-- Canvas para mostrar todas las páginas del PDF -->
                <div 
-                 v-for="pageNum in totalPages" 
-                 :key="pageNum"
-                 class="relative"
+                v-for="pageNum in totalPages" 
+                :key="pageNum"
+                class="relative w-max"
+                style="margin-left: 0;"
                >
                 <div class="page-container">
                   <canvas 
@@ -273,6 +278,8 @@ const touchStartScale = ref(1)
 const isZooming = ref(false)
 const lastTouchTime = ref(0)
 const renderTimeout = ref(null)
+const isDragging = ref(false)
+const lastPointer = ref({ x: 0, y: 0 })
  
  // Estado de la firma (ya no se usa, se envía directamente)
 
@@ -282,6 +289,32 @@ const setCanvasRef = (el, pageNum) => {
   if (el) {
     pdfCanvases.value[pageNum] = el
   }
+}
+
+// Paneo por arrastre con un dedo/cursor cuando hay zoom
+const handlePointerDown = (e) => {
+  if (!scrollContainer.value) return
+  isDragging.value = true
+  lastPointer.value = { x: e.clientX, y: e.clientY }
+  scrollContainer.value.setPointerCapture?.(e.pointerId)
+}
+
+const handlePointerMove = (e) => {
+  if (!isDragging.value || !scrollContainer.value) return
+  const dx = e.clientX - lastPointer.value.x
+  const dy = e.clientY - lastPointer.value.y
+  lastPointer.value = { x: e.clientX, y: e.clientY }
+  // Solo paneamos si hay zoom > 1
+  if (currentScale.value > 1) {
+    scrollContainer.value.scrollLeft -= dx
+    scrollContainer.value.scrollTop -= dy
+  }
+}
+
+const handlePointerUp = (e) => {
+  if (!scrollContainer.value) return
+  isDragging.value = false
+  scrollContainer.value.releasePointerCapture?.(e.pointerId)
 }
 
 // Funciones para zoom táctil
@@ -295,10 +328,13 @@ const handleTouchStart = (event) => {
   if (event.touches.length === 2) {
     // Iniciar zoom con dos dedos
     event.preventDefault()
+    event.stopPropagation()
     isZooming.value = true
     touchStartDistance.value = getDistance(event.touches[0], event.touches[1])
     touchStartScale.value = currentScale.value
     lastTouchTime.value = Date.now()
+  } else if (event.touches.length === 1) {
+    // Scroll nativo con un dedo (no detener propagación)
   }
 }
 
@@ -482,7 +518,7 @@ const initPdfJs = async () => {
       height: viewport.height
     })
     
-    const containerWidth = pdfContainer.value.clientWidth - (isMobile.value ? 32 : 64)
+    const containerWidth = (scrollContainer.value?.clientWidth ?? pdfContainer.value.clientWidth) - (isMobile.value ? 32 : 64)
     const scaleX = containerWidth / viewport.width
     
     // En móvil, aseguramos que la escala inicial sea al menos 1.0
@@ -549,23 +585,40 @@ const initPdfJs = async () => {
        return
      }
      
-    // Configurar tamaño base del canvas (sin zoom)
-    const baseViewport = rawPage.getViewport({ scale: 1.0 })
-    canvas.width = baseViewport.width
-    canvas.height = baseViewport.height
+    // Calcular dimensiones óptimas para el dispositivo
+    const pixelRatio = window.devicePixelRatio || 1
+   const containerWidth = (scrollContainer.value?.clientWidth ?? canvas.parentElement.clientWidth) - 32 // Restamos padding .p-4
     
-    // Aplicar escala via transform (mejor performance)
-    canvas.style.transform = `scale(${currentScale.value})`
+    // Calcular escala base para el dispositivo
+    const baseViewport = rawPage.getViewport({ scale: 1.0 })
+    const containerScale = containerWidth / baseViewport.width
+    
+   // Aplicar escala con alta calidad (ajustando al zoom actual)
+   const qualityScale = containerScale * pixelRatio
+   canvas.width = baseViewport.width * qualityScale * currentScale.value
+   canvas.height = baseViewport.height * qualityScale * currentScale.value
+    
+   // Ajustar tamaño visual del canvas según zoom para permitir scroll nativo
+   const visualWidth = baseViewport.width * containerScale * currentScale.value
+   const visualHeight = baseViewport.height * containerScale * currentScale.value
+   canvas.style.width = `${visualWidth}px`
+   canvas.style.height = `${visualHeight}px`
+   // Asegurar que su wrapper crezca al mismo tamaño para no recortar por la izquierda
+   const wrapper = canvas.parentElement
+   if (wrapper) {
+     wrapper.style.width = `${visualWidth}px`
+     wrapper.style.minWidth = `${visualWidth}px`
+   }
      
      // Limpiar el canvas antes de renderizar
      context.clearRect(0, 0, canvas.width, canvas.height)
      
-     // Renderizar la página en el canvas
-     const renderContext = {
-       canvasContext: context,
-       viewport: scaledViewport,
-       intent: 'display'
-     }
+    // Renderizar la página en el canvas con alta calidad
+    const renderContext = {
+      canvasContext: context,
+      viewport: rawPage.getViewport({ scale: qualityScale * currentScale.value }),
+      intent: 'display'
+    }
      
      console.log(`🔧 Iniciando renderizado de página ${pageNum}...`)
      const renderTask = rawPage.render(renderContext)
@@ -740,8 +793,9 @@ const downloadPDF = async () => {
 /* Canvas responsivo */
 canvas {
   display: block;
-  margin: 0 auto;
-  transform-origin: top center;
+  max-width: none;
+  transform-origin: center;
+  touch-action: pan-x pan-y; /* Permitir paneo con un dedo */
 }
 
 /* Contenedor del PDF con zoom */
@@ -749,13 +803,26 @@ canvas {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  touch-action: pan-x pan-y; /* Scroll en ambas direcciones, zoom personalizado */
+}
+
+.pdf-container.dragging {
+  cursor: grabbing;
 }
 
 /* Contenedor de página individual */
 .page-container {
-  width: fit-content;
-  margin: 0 auto;
-  transform-origin: top center;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transform-origin: center;
+  padding: 1rem;
+  width: max-content;
+  overflow: visible;
 }
 
 /* Hover effects */
