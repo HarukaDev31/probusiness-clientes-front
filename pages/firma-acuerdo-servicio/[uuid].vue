@@ -1,29 +1,18 @@
 <template>
-    <div class="min-h-screen w-3/4 mx-auto min-w-fit bg-gray-50 dark:bg-gray-900">
+    <div class="min-h-screen w-3/4 mx-auto min-w-fit bg-gray-50">
       <!-- Header con controles -->
       <UCard class="m-4 shadow-lg">
         <template #header>
-          <div class="flex justify-between items-center">
-            <div class="text-center flex-1">
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+          <div class="text-center">
+                <h1 class="text-2xl font-bold text-gray-900">
                   {{ hasSignedContract ? 'Contrato de Servicio Firmado' : 'Firma de Acuerdo de Servicio' }}
                 </h1>
-                <p v-if="hasSignedContract" class="text-sm text-green-600 dark:text-green-400 mt-2">
+                <p v-if="hasSignedContract" class="text-sm text-green-600 mt-2">
                   ✅ Este contrato ya ha sido firmado
                 </p>
             </div>
-            
-            <!-- Botón de tema oscuro/claro -->
-            <div class="flex items-center gap-2">
-              <UIcon name="i-heroicons-sun" class="w-5 h-5 text-gray-500 dark:text-gray-400" />
-              <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" class="sr-only peer" :checked="isDark" @change="toggleDarkMode" />
-                <div class="w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full peer-checked:bg-primary-600 transition-colors"></div>
-                <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transform peer-checked:translate-x-4 transition-transform" />
-              </label>
-              <UIcon name="i-heroicons-moon" class="w-5 h-5 text-gray-500 dark:text-gray-400" />
-            </div>
-          </div>
+              
+         
         </template>
         
          <!-- Información de páginas -->
@@ -45,7 +34,7 @@
            <div class="relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden" ref="pdfContainer">
              <!-- Contenedor con scroll mejorado para todas las páginas -->
              <div 
-               class="overflow-auto max-h-[85vh] p-4 relative prevent-zoom" 
+               class="overflow-auto max-h-[85vh] p-4 relative" 
                ref="scrollContainer"
                @touchstart="handleTouchStart"
                @touchmove="handleTouchMove"
@@ -125,31 +114,6 @@
                      class="block bg-white shadow-lg rounded"
                    ></canvas>
                 
-                <!-- Overlay transparente para capturar clicks cuando está en modo selección -->
-                <div
-                     v-if="false"
-                     @click="(event) => handlePositionClick(event, pageNum)"
-                  class="absolute inset-0 cursor-crosshair z-10"
-                ></div>
-                
-                <!-- Firma colocada con controles (solo si no está firmado) -->
-                <div 
-                     v-if="!hasSignedContract && hasSignature && signaturePosition.page === pageNum"
-                     class="absolute z-20"
-                     :style="getSignatureStyle(pageNum)"
-                   >
-                     <!-- Imagen de la firma fija -->
-                     <div class="relative border-2 border-blue-500 rounded p-1">
-                    <img 
-                      :src="signatureImageData" 
-                      :width="signatureSize.width"
-                      :height="signatureSize.height"
-                      class="block"
-                      draggable="false"
-                      alt="Firma"
-                    />
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -160,7 +124,7 @@
       <!-- Controles flotantes centrados -->
       <div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 flex gap-4">
         <!-- Controles de zoom (solo en desktop) -->
-        <div v-if="!isMobile" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 flex items-center gap-2">
+        <div  class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 flex items-center gap-2">
           <UButton 
             @click="zoomOut" 
             :disabled="currentScale <= minScale"
@@ -187,29 +151,13 @@
         <!-- Controles de firma (solo si no está firmado) -->
         <div v-if="!hasSignedContract" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 flex items-center gap-2">
           <UButton 
-            @click="toggleSignatureMode" 
-            :color="isSigningMode ? 'error' : 'primary'"
-            :variant="isSigningMode ? 'outline' : 'solid'"
+            @click="openSignatureModal" 
+            color="primary"
+            variant="solid"
             size="sm"
             icon="i-heroicons-pencil"
           >
-          </UButton>
-          <UButton 
-            @click="clearSignature" 
-            v-if="hasSignature"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            icon="i-heroicons-trash"
-          >
-          </UButton>
-          <UButton 
-            @click="saveSignature" 
-            v-if="hasSignature"
-            color="success"
-            size="sm"
-            icon="i-heroicons-check"
-          >
+            Firmar
           </UButton>
           <UButton 
             @click="downloadPDF" 
@@ -270,13 +218,9 @@
   import { useServiceContract } from '~/composables/useServiceContract'
   const { showSuccess, showError } = useModal()
   
-  // Dark mode
+  // Forzar tema claro siempre
   const colorMode = useColorMode()
-  const isDark = computed(() => colorMode.value === 'dark')
-  
-  const toggleDarkMode = () => {
-    colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
-  }
+  const previousTheme = ref(colorMode.preference)
    // Importación dinámica de pdf.js para evitar problemas de SSR
    let pdfjsLib = null
    
@@ -327,34 +271,8 @@
   const lastTouchTime = ref(0)
   const renderTimeout = ref(null)
    
-   // Estado de la firma
-   const hasSignature = ref(false)
-   const signaturePosition = ref({ x: 100, y: 150, page: 1 }) // Posición fija en la última página
-   const signatureImageData = ref(null)
-   const signatureSize = ref({ width: 200, height: 60 })
+   // Estado de la firma (ya no se usa, se envía directamente)
   
-  // Computeds
-  const isSigningMode = computed(() => {
-    return hasSignature.value
-  })
-  
-  const signatureStyle = computed(() => {
-    return {
-      left: `${signaturePosition.value.x}px`,
-      top: `${signaturePosition.value.y}px`,
-    }
-  })
-
-  // Función para obtener el estilo de la firma según la página
-  const getSignatureStyle = (pageNum) => {
-    if (signaturePosition.value.page !== pageNum) {
-      return { display: 'none' }
-    }
-    return {
-      left: `${signaturePosition.value.x}px`,
-      top: `${signaturePosition.value.y}px`,
-    }
-  }
 
   // Función para establecer referencias de canvas
   const setCanvasRef = (el, pageNum) => {
@@ -388,9 +306,6 @@
     }
     renderTimeout.value = setTimeout(() => {
       renderAllPages()
-      if (hasSignature.value) {
-        positionSignatureOnLastPage()
-      }
     }, 50) // Debounce de 50ms para mejor rendimiento
   }
   
@@ -662,11 +577,6 @@
      if (currentScale.value < maxScale.value) {
        currentScale.value = Math.min(maxScale.value, currentScale.value + 0.25)
        await renderAllPages()
-       
-       // Recalcular tamaño de firma si existe
-       if (hasSignature.value) {
-         await positionSignatureOnLastPage()
-       }
      }
    }
    
@@ -674,11 +584,6 @@
      if (currentScale.value > minScale.value) {
        currentScale.value = Math.max(minScale.value, currentScale.value - 0.25)
        await renderAllPages()
-       
-       // Recalcular tamaño de firma si existe
-       if (hasSignature.value) {
-         await positionSignatureOnLastPage()
-       }
      }
    }
    
@@ -693,87 +598,32 @@
     console.log('Click en página', pageNum, '- La firma se posiciona automáticamente')
   }
   
-  // Alternar modo de firma
-  const toggleSignatureMode = () => {
-    if (hasSignature.value) {
-      // Limpiar firma existente
-      clearSignature()
-    } else {
-      // Abrir modal de firma
-      signatureModal.open({
-        onClose: () => {
-          signatureModal.close()
-        },
-        onConfirm: async (signatureData) => {
-          signatureImageData.value = signatureData
-          signatureModal.close()
-          hasSignature.value = true
-          
-          // Posicionar automáticamente en la última página
-          await positionSignatureOnLastPage()
+  // Abrir modal de firma y enviar directamente al backend
+  const openSignatureModal = () => {
+    signatureModal.open({
+      onClose: () => {
+        signatureModal.close()
+      },
+      onConfirm: async (signatureData) => {
+        signatureModal.close()
+        
+        // Enviar firma directamente al backend
+        try {
+          const response = await signServiceContract(uuid as string, signatureData as unknown as string)
+          if (response.success) {
+            showSuccess('Firma guardada', 'La firma se ha guardado correctamente')
+            await loadPDF()
+            redirectToWhatsApp('+51992583703')
+          } else {
+            showError('Error al guardar', 'No se pudo guardar la firma. Inténtalo de nuevo.')
+          }
+        } catch (err) {
+          showError('Error al guardar', 'No se pudo guardar la firma. Inténtalo de nuevo.')
         }
-      })
-    }
+      }
+    })
   }
   
-  // Posicionar firma automáticamente en la última página
-  const positionSignatureOnLastPage = async () => {
-    if (!totalPages.value || !pdfDoc.value) return
-    
-    try {
-      // Obtener la página original (sin escalar) para calcular coordenadas base
-      const originalPage = await pdfDoc.value.getPage(totalPages.value)
-      const originalViewport = originalPage.getViewport({ scale: 1 })
-      
-      // Obtener el canvas escalado actual  
-      const canvasWidth = pdfCanvases.value[totalPages.value].width
-      
-      // Calcular tamaño proporcional al canvas actual (30% del ancho del canvas)
-      const canvasSignatureWidth = Math.round(canvasWidth * 0.3) // 30% del ancho del canvas
-      
-      // Aspect ratio consistente (ancho:alto = 3:1 aproximadamente)
-      const aspectRatio = 3
-      const canvasSignatureHeight = Math.round(canvasSignatureWidth / aspectRatio)
-
-      // Usar el tamaño del canvas directamente (más simple y confiable)
-      const signatureWidth = canvasSignatureWidth
-      const signatureHeight = canvasSignatureHeight
-      
-      // Actualizar el tamaño de la firma
-      signatureSize.value = {
-        width: signatureWidth,
-        height: signatureHeight
-      }
-      
-      // Posición relativa al canvas actual (más simple y robusta)
-      const canvasHeight = pdfCanvases.value[totalPages.value].height
-      
-      // Porcentajes del canvas actual (13% horizontal, 40% vertical)
-      const fixedX = Math.round(canvasWidth * 0.13)
-      const fixedY = Math.round(canvasHeight * 0.40)
-      
-      signaturePosition.value = {
-        x: fixedX,
-        y: fixedY,
-        page: totalPages.value // Última página
-      }
-      
-      console.log(`🔧 Debug firma:`)
-      console.log(`- Canvas size: ${canvasWidth}x${canvasHeight}px`)
-      console.log(`- Signature size: ${signatureWidth}x${signatureHeight}px (${Math.round(signatureWidth/canvasWidth*100)}% del canvas)`)
-      console.log(`- Position: (${fixedX}, ${fixedY})px (13%, 40% del canvas)`)
-      console.log(`- Current scale: ${currentScale.value}x`)
-      
-    } catch (error) {
-      console.error('Error calculando posición de firma:', error)
-    }
-  }
-  
-  // Limpiar firma
-  const clearSignature = () => {
-    hasSignature.value = false
-    signatureImageData.value = null
-  }
   
   
    // Función para redirigir a WhatsApp
@@ -801,37 +651,6 @@
      }
    }
 
-   // Guardar firma
-   const saveSignature = async () => {
-     try {
-       console.log('Guardando firma para UUID:', uuid)
-       
-       // Verificar que tenemos la firma
-       if (!signatureImageData.value) {
-         throw new Error('No hay firma disponible para guardar')
-       }
-       
-       
-       
-       // Usar el composable para firmar el contrato (solo la firma)
-      const response= await signServiceContract(uuid as string, signatureImageData.value as unknown as string)
-      if (response.success) {
-       showSuccess('Firma guardada', 'La firma se ha guardado correctamente')
-       console.log('🔧 Firma guardada:', response.data)
-       
-       // Redirigir a WhatsApp después de una firma exitosa
-       setTimeout(() => {
-         redirectToWhatsApp('+51992583703')
-       }, 2000) // Esperar 2 segundos para que el usuario vea el mensaje de éxito
-       
-      } else {
-       showError('Error al guardar', 'No se pudo guardar la firma. Inténtalo de nuevo.')
-       console.error('❌ Error al guardar firma:', response.message)
-      }
-      } catch (err) {
-        showError('Error al guardar', 'No se pudo guardar la firma. Inténtalo de nuevo.')
-      }
-    }
   
   // Descargar PDF original
   const downloadPDF = async () => {
@@ -847,19 +666,17 @@
     // Actualizar detección de móvil
     isMobile.value = window.innerWidth <= 768
     
-    if (pdfDoc.value && totalPages.value > 0) {
-      await renderAllPages()
-      
-      // Recalcular tamaño de firma si existe
-      if (hasSignature.value) {
-        await positionSignatureOnLastPage()
-      }
+     if (pdfDoc.value && totalPages.value > 0) {
+       await renderAllPages()
      }
    }
    
    // Lifecycle hooks
    onMounted(async () => {
      try {
+      // Forzar tema claro al cargar la página
+      colorMode.preference = 'light'
+      
       // Detectar si es móvil
       isMobile.value = window.innerWidth <= 768
       
@@ -876,6 +693,9 @@
    })
    
    onUnmounted(() => {
+     // Restaurar tema original del usuario
+     colorMode.preference = previousTheme.value
+     
      // Limpiar el documento PDF
      if (pdfDoc.value) {
        pdfDoc.value.destroy()
