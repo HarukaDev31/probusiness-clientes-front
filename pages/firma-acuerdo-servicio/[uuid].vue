@@ -32,7 +32,14 @@
          <div class="relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden h-full flex justify-center items-stretch" ref="pdfContainer">
            <!-- Contenedor con scroll mejorado para todas las páginas -->
           <div 
-            :class="['overflow-x-auto overflow-y-visible p-4 relative pdf-container w-full', { dragging: isDragging }]"
+            :class="[
+              'pdf-scroll-container',
+              'relative p-4 w-full h-full',
+              { 
+                'dragging': isDragging,
+                'zoomed': currentScale > 1
+              }
+            ]"
              ref="scrollContainer"
              @touchstart="handleTouchStart"
              @touchmove="handleTouchMove"
@@ -104,13 +111,19 @@
              </div>
              
             <!-- PDF renderizado (siempre presente en el DOM) -->
-            <div class="flex flex-col items-center space-y-4 w-max" ref="pdfViewer" style="margin-left: 0;">
+             <div 
+               class="pdf-content-wrapper"
+               ref="pdfViewer"
+               :style="{
+                 width: isMobile && currentScale > 1 ? 'max-content' : 'auto',
+                 minWidth: '100%'
+               }"
+             >
                <!-- Canvas para mostrar todas las páginas del PDF -->
                <div 
                 v-for="pageNum in totalPages" 
                 :key="pageNum"
-                class="relative w-max"
-                style="margin-left: 0;"
+                class="relative page-wrapper"
                >
                 <div class="page-container">
                   <canvas 
@@ -214,6 +227,7 @@
 
   </div>
 </template>
+
 
 <script setup lang="ts">
  import { ref, computed, onMounted, onUnmounted, nextTick, markRaw } from 'vue'
@@ -517,24 +531,17 @@ const initPdfJs = async () => {
       height: viewport.height
     })
     
-    const containerWidth = (scrollContainer.value?.clientWidth ?? pdfContainer.value.clientWidth) - (isMobile.value ? 32 : 64)
-    const scaleX = containerWidth / viewport.width
-    
-    // En móvil, aseguramos que la escala inicial sea al menos 1.0
-    const initialScale = isMobile.value ? Math.max(1.0, scaleX) : Math.max(scaleX, minScale.value)
-    const scale = Math.min(initialScale, maxScale.value)
-    
-    console.log('🔧 Escala calculada:', {
-      containerWidth,
-      scaleX,
-      scale,
-      currentScale: currentScale.value,
-      isMobile: isMobile.value
-    })
-    
+    // En desktop, iniciar siempre a 100%. En móvil, ajustar al ancho disponible (mínimo 1.0)
     if (currentScale.value === 1.0) {
-      currentScale.value = scale
-      console.log('🔧 Escala actualizada a:', currentScale.value)
+      if (isMobile.value) {
+        const containerWidth = (scrollContainer.value?.clientWidth ?? pdfContainer.value.clientWidth) - 32
+        const scaleX = containerWidth / viewport.width
+        currentScale.value = Math.max(1.0, scaleX)
+      } else {
+        // Desktop siempre inicia a 100%
+        currentScale.value = 1.0
+      }
+      console.log('🔧 Escala inicial establecida:', currentScale.value, isMobile.value ? '(móvil)' : '(desktop 100%)')
     }
      
      // Renderizar todas las páginas
@@ -592,30 +599,36 @@ const initPdfJs = async () => {
     const baseViewport = rawPage.getViewport({ scale: 1.0 })
     const containerScale = containerWidth / baseViewport.width
     
-   // Aplicar escala con alta calidad (ajustando al zoom actual)
-   const qualityScale = containerScale * pixelRatio
-   canvas.width = baseViewport.width * qualityScale * currentScale.value
-   canvas.height = baseViewport.height * qualityScale * currentScale.value
-    
-   // Ajustar tamaño visual del canvas según zoom para permitir scroll nativo
+   // Renderizar a alta calidad sin incluir currentScale
+   canvas.width = baseViewport.width * containerScale * pixelRatio
+   canvas.height = baseViewport.height * containerScale * pixelRatio
+   
+   // Tamaño visual del canvas (ajustado por el zoom actual del usuario)
    const visualWidth = baseViewport.width * containerScale * currentScale.value
    const visualHeight = baseViewport.height * containerScale * currentScale.value
    canvas.style.width = `${visualWidth}px`
    canvas.style.height = `${visualHeight}px`
-   // Asegurar que su wrapper crezca al mismo tamaño para no recortar por la izquierda
-   const wrapper = canvas.parentElement
+   
+   // Asegurar que los wrappers crezcan al mismo tamaño para permitir scroll
+   const wrapper = canvas.parentElement // .page-container
    if (wrapper) {
      wrapper.style.width = `${visualWidth}px`
      wrapper.style.minWidth = `${visualWidth}px`
+   }
+   
+   const pageWrapper = wrapper?.parentElement // .page-wrapper
+   if (pageWrapper) {
+     pageWrapper.style.width = `${visualWidth}px`
+     pageWrapper.style.minWidth = `${visualWidth}px`
    }
      
      // Limpiar el canvas antes de renderizar
      context.clearRect(0, 0, canvas.width, canvas.height)
      
-    // Renderizar la página en el canvas con alta calidad
+    // Renderizar la página en el canvas con la misma escala del tamaño del canvas
     const renderContext = {
       canvasContext: context,
-      viewport: rawPage.getViewport({ scale: qualityScale * currentScale.value }),
+      viewport: rawPage.getViewport({ scale: containerScale * pixelRatio }),
       intent: 'display'
     }
      
@@ -797,12 +810,63 @@ const downloadPDF = async () => {
   opacity: 0;
 }
 
+/* Contenedor principal con scroll mejorado */
+.pdf-scroll-container {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  position: relative;
+  touch-action: pan-x pan-y;
+}
+
+/* Cuando está con zoom, asegurar que el scroll funcione correctamente */
+.pdf-scroll-container.zoomed {
+  overflow: scroll !important;
+  /* Permitir scroll en ambas direcciones cuando hay zoom */
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+}
+
+/* Para móvil, asegurar que el contenedor tenga el tamaño correcto */
+@media (max-width: 768px) {
+  .pdf-scroll-container {
+    max-width: 100%;
+    max-height: 100%;
+    /* Importante: permitir que el contenido crezca más allá del viewport */
+    overflow: auto !important;
+  }
+  
+  .pdf-scroll-container.zoomed {
+    /* En móvil con zoom, permitir scroll libre */
+    overflow: scroll !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
+
+/* Wrapper del contenido PDF */
+.pdf-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  position: relative;
+  margin: 0 auto;
+}
+
+/* Wrapper de cada página */
+.page-wrapper {
+  width: max-content;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+}
+
 /* Canvas responsivo */
 canvas {
   display: block;
-  max-width: none;
-  transform-origin: center;
-  touch-action: pan-x pan-y; /* Permitir paneo con un dedo */
+  max-width: none !important; /* Importante para permitir que el canvas crezca con el zoom */
+  height: auto;
+  touch-action: none; /* Desactivar gestos del navegador en el canvas */
 }
 
 /* Contenedor del PDF con zoom */
@@ -813,11 +877,12 @@ canvas {
   display: flex;
   flex-direction: column;
   align-items: center;
-  touch-action: pan-x pan-y; /* Scroll en ambas direcciones, zoom personalizado */
 }
 
-.pdf-container.dragging {
-  cursor: grabbing;
+.pdf-container.dragging,
+.pdf-scroll-container.dragging {
+  cursor: grabbing !important;
+  user-select: none !important;
 }
 
 /* Contenedor de página individual */
@@ -826,10 +891,8 @@ canvas {
   display: flex;
   justify-content: center;
   align-items: center;
-  transform-origin: center;
-  padding: 1rem;
+  padding: 0.5rem;
   width: max-content;
-  overflow: visible;
 }
 
 /* Hover effects */
@@ -846,18 +909,37 @@ canvas {
   pointer-events: auto !important;
 }
 
-/* Mejorar experiencia táctil */
-.touch-manipulation {
-  touch-action: manipulation;
-}
-
-/* Prevenir zoom del navegador durante el zoom personalizado */
-.prevent-zoom {
-  touch-action: pan-x pan-y;
-}
-
 /* Transición suave para el indicador de zoom */
 .zoom-indicator {
   transition: opacity 0.2s ease-in-out;
+  pointer-events: none;
+}
+
+/* Mejoras para scroll en móvil */
+@supports (-webkit-touch-callout: none) {
+  /* Estilos específicos para iOS */
+  .pdf-scroll-container {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Asegurar que el scroll horizontal funcione en todos los navegadores móviles */
+.pdf-scroll-container::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.pdf-scroll-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.pdf-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+.pdf-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
 }
 </style>
