@@ -257,8 +257,8 @@ const pdfCanvases = ref({}) // Objeto para almacenar múltiples canvas
  const isRendering = ref(false)
  const isPdfLoaded = ref(false)
  const currentScale = ref(1.0)
- const minScale = ref(0.5)
- const maxScale = ref(3.0)
+const minScale = ref(0.5)
+const maxScale = ref(isMobile.value ? 5.0 : 3.0)
 
  // Estado general
 const pdfUrl = computed(() => contractUrl.value)
@@ -545,13 +545,13 @@ const initPdfJs = async () => {
        return
      }
      
-     // Configurar tamaño del canvas
-     canvas.width = scaledViewport.width
-     canvas.height = scaledViewport.height
-     
-     // Centrar el canvas horizontalmente
-     canvas.style.display = 'block'
-     canvas.style.margin = '0 auto'
+    // Configurar tamaño base del canvas (sin zoom)
+    const baseViewport = rawPage.getViewport({ scale: 1.0 })
+    canvas.width = baseViewport.width
+    canvas.height = baseViewport.height
+    
+    // Aplicar escala via transform (mejor performance)
+    canvas.style.transform = `scale(${currentScale.value})`
      
      // Limpiar el canvas antes de renderizar
      context.clearRect(0, 0, canvas.width, canvas.height)
@@ -735,10 +735,9 @@ const downloadPDF = async () => {
 
 /* Canvas responsivo */
 canvas {
-  max-width: 100%;
-  width: 100%;
-  height: auto !important;
+  display: block;
   margin: 0 auto;
+  transform-origin: top center;
 }
 
 /* Contenedor del PDF con zoom */
@@ -750,10 +749,9 @@ canvas {
 
 /* Contenedor de página individual */
 .page-container {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  width: fit-content;
+  margin: 0 auto;
+  transform-origin: top center;
 }
 
 /* Hover effects */
