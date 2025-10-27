@@ -17,7 +17,7 @@
     <!-- PDF Container -->
     <div class="mx-4 mb-4">
       <UCard class="shadow-lg">
-                 <div class="bg-gray-100 rounded-lg overflow-hidden max-h-[90vh] overflow-y-auto">
+        <div class="bg-gray-100 rounded-lg overflow-hidden max-h-[90vh] overflow-y-auto">
           <!-- Loading -->
           <div v-if="!isLoaded" class="flex items-center justify-center p-20">
             <div class="text-center">
@@ -26,15 +26,37 @@
             </div>
           </div>
 
-                     <!-- PDF en iframe -->
-           <div v-if="isLoaded" class="w-full">
-             <iframe
-               :src="pdfUrl"
-               class="w-full pdf-iframe border-0"
-               frameborder="0"
-               scrolling="auto"
-             ></iframe>
-           </div>
+          <!-- PDF con object para mejor compatibilidad móvil -->
+          <div v-if="isLoaded" class="w-full pdf-container">
+            <!-- Opción 1: Usando object (mejor para móviles) -->
+            <object
+              :data="pdfUrl"
+              type="application/pdf"
+              class="w-full pdf-viewer"
+            >
+              <!-- Fallback para navegadores que no soportan object -->
+              <embed
+                :src="pdfUrl"
+                type="application/pdf"
+                class="w-full pdf-viewer"
+              />
+              
+              <!-- Fallback final si ninguno funciona -->
+              <div class="p-8 text-center">
+                <p class="text-gray-600 mb-4">
+                  No se puede mostrar el PDF en este navegador.
+                </p>
+                <UButton
+                  @click="downloadPDF"
+                  color="primary"
+                  variant="solid"
+                  icon="i-heroicons-arrow-down-tray"
+                >
+                  Descargar PDF
+                </UButton>
+              </div>
+            </object>
+          </div>
         </div>
       </UCard>
     </div>
