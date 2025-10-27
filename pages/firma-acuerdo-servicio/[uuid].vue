@@ -258,13 +258,14 @@ const pdfCanvases = ref({}) // Objeto para almacenar múltiples canvas
  const isPdfLoaded = ref(false)
  const currentScale = ref(1.0)
 const minScale = ref(0.5)
+const isMobile = ref(false)
+
 const maxScale = ref(isMobile.value ? 5.0 : 3.0)
 
  // Estado general
 const pdfUrl = computed(() => contractUrl.value)
 
  // Detectar si es móvil
-const isMobile = ref(false)
 
 // Variables para zoom táctil
 const touchStartDistance = ref(0)
