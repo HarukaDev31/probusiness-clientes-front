@@ -17,7 +17,7 @@
     <!-- PDF Container -->
     <div class="mx-4 mb-4">
       <UCard class="shadow-lg">
-        <div class="bg-gray-100 rounded-lg overflow-hidden">
+                 <div class="bg-gray-100 rounded-lg overflow-hidden max-h-[90vh] overflow-y-auto">
           <!-- Loading -->
           <div v-if="!isLoaded" class="flex items-center justify-center p-20">
             <div class="text-center">
@@ -26,14 +26,15 @@
             </div>
           </div>
 
-          <!-- PDF con embed/iframe para mejor compatibilidad -->
-          <div v-if="isLoaded" class="w-full min-h-[70vh]">
-            <embed
-              :src="pdfUrl"
-              type="application/pdf"
-              class="w-full h-[80vh]"
-            />
-          </div>
+                     <!-- PDF en iframe -->
+           <div v-if="isLoaded" class="w-full">
+             <iframe
+               :src="pdfUrl"
+               class="w-full pdf-iframe border-0"
+               frameborder="0"
+               scrolling="auto"
+             ></iframe>
+           </div>
         </div>
       </UCard>
     </div>
@@ -185,7 +186,18 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-embed {
-  min-height: 70vh;
+.pdf-iframe {
+  height: 85vh;
+  min-height: 500px;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .pdf-iframe {
+    height: 70vh;
+    min-height: 400px;
+    -webkit-overflow-scrolling: touch;
+    touch-action: manipulation;
+  }
 }
 </style>
