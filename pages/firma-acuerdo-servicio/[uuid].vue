@@ -31,7 +31,7 @@
     <!-- Contenedor principal del PDF -->
     <div class="mx-4 mb-4">
       <UCard class="shadow-lg">
-         <div class="relative bg-gray-100 dark:bg-gray-800 rounded-lg" ref="pdfContainer">
+         <div class="relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden" ref="pdfContainer">
            <!-- Contenedor con scroll mejorado para todas las páginas -->
            <div 
              class="overflow-auto max-h-[85vh] p-4 relative pdf-container" 
@@ -109,10 +109,12 @@
                  :key="pageNum"
                  class="relative"
                >
-                 <canvas 
-                   :ref="(el) => setCanvasRef(el, pageNum)"
-                   class="block bg-white shadow-lg rounded"
-                 ></canvas>
+                <div class="page-container">
+                  <canvas 
+                    :ref="(el) => setCanvasRef(el, pageNum)"
+                    class="block bg-white shadow-lg rounded"
+                  ></canvas>
+                </div>
               
             </div>
           </div>
@@ -733,8 +735,9 @@ const downloadPDF = async () => {
 
 /* Canvas responsivo */
 canvas {
-  max-width: none;
-  height: auto;
+  max-width: 100%;
+  width: 100%;
+  height: auto !important;
   margin: 0 auto;
 }
 
@@ -742,6 +745,15 @@ canvas {
 .pdf-container {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+
+/* Contenedor de página individual */
+.page-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 /* Hover effects */
