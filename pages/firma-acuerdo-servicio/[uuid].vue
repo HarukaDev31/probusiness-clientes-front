@@ -295,6 +295,8 @@ const isDragging = ref(false)
 const lastPointer = ref({ x: 0, y: 0 })
 const visualScale = ref(1.0) // Escala visual para preview inmediato
 const renderQueue = ref(0) // Contador para controlar el renderizado final
+const zoomCenter = ref<{ x: number; y: number; viewportX?: number; viewportY?: number }>({ x: 0, y: 0 }) // Punto central del zoom para preservar posición
+const scrollAtZoomStart = ref({ x: 0, y: 0 }) // Posición del scroll al iniciar zoom
  
  // Estado de la firma (ya no se usa, se envía directamente)
 
@@ -306,28 +308,37 @@ const setCanvasRef = (el, pageNum) => {
   }
 }
 
-// Paneo por arrastre con un dedo/cursor cuando hay zoom
+// Paneo por arrastre con un dedo/cursor cuando hay zoom (solo desktop/mouse)
 const handlePointerDown = (e) => {
-  if (!scrollContainer.value) return
-  isDragging.value = true
-  lastPointer.value = { x: e.clientX, y: e.clientY }
-  scrollContainer.value.setPointerCapture?.(e.pointerId)
+  // Solo activar en desktop (no móvil) o cuando no es un evento touch
+  if (!scrollContainer.value || isMobile.value || e.pointerType === 'touch') return
+  
+  // Solo activar si hay zoom y es con mouse
+  if (currentScale.value > 1 && e.pointerType === 'mouse') {
+    e.preventDefault()
+    isDragging.value = true
+    lastPointer.value = { x: e.clientX, y: e.clientY }
+    scrollContainer.value.setPointerCapture?.(e.pointerId)
+  }
 }
 
 const handlePointerMove = (e) => {
-  if (!isDragging.value || !scrollContainer.value) return
+  // Solo procesar si es mouse en desktop y no hay touch activo
+  if (!isDragging.value || !scrollContainer.value || isMobile.value || e.pointerType === 'touch') return
+  
   const dx = e.clientX - lastPointer.value.x
   const dy = e.clientY - lastPointer.value.y
   lastPointer.value = { x: e.clientX, y: e.clientY }
-  // Solo paneamos si hay zoom > 1
-  if (currentScale.value > 1) {
+  
+  // Solo paneamos si hay zoom > 1 y es con mouse
+  if (currentScale.value > 1 && e.pointerType === 'mouse') {
     scrollContainer.value.scrollLeft -= dx
     scrollContainer.value.scrollTop -= dy
   }
 }
 
 const handlePointerUp = (e) => {
-  if (!scrollContainer.value) return
+  if (!scrollContainer.value || e.pointerType === 'touch') return
   isDragging.value = false
   scrollContainer.value.releasePointerCapture?.(e.pointerId)
 }
@@ -339,18 +350,130 @@ const getDistance = (touch1, touch2) => {
   return Math.sqrt(dx * dx + dy * dy)
 }
 
+// Función para actualizar tamaños visuales inmediatamente
+const updateVisualSizes = () => {
+  if (!scrollContainer.value) return
+  
+  // Calcular el factor de escala visual
+  const transformScale = visualScale.value / currentScale.value
+  
+  // Actualizar todos los canvas y wrappers
+  Object.keys(pdfCanvases.value).forEach((pageNum) => {
+    const canvas = pdfCanvases.value[pageNum]
+    if (!canvas) return
+    
+    // Obtener el wrapper de la página
+    const wrapper = canvas.parentElement // .page-container
+    const pageWrapper = wrapper?.parentElement // .page-wrapper
+    
+    if (wrapper && pageWrapper) {
+      // Obtener el ancho y alto base del canvas (antes del transform)
+      const baseWidth = parseFloat(canvas.style.width) || canvas.offsetWidth
+      const baseHeight = parseFloat(canvas.style.height) || canvas.offsetHeight
+      
+      if (baseWidth > 0 && baseHeight > 0) {
+        // Aplicar transform CSS para preview inmediato
+        canvas.style.transform = transformScale !== 1.0 ? `scale(${transformScale})` : 'none'
+        canvas.style.transformOrigin = 'top left'
+        
+        // Actualizar tamaños de wrappers (ancho y alto) para que el scroll funcione correctamente
+        const newWidth = baseWidth * transformScale
+        const newHeight = baseHeight * transformScale
+        
+        wrapper.style.width = `${newWidth}px`
+        wrapper.style.minWidth = `${newWidth}px`
+        wrapper.style.height = `${newHeight}px`
+        wrapper.style.minHeight = `${newHeight}px`
+        
+      pageWrapper.style.width = `${newWidth}px`
+      pageWrapper.style.minWidth = `${newWidth}px`
+      pageWrapper.style.height = `${newHeight}px`
+      pageWrapper.style.minHeight = `${newHeight}px`
+      }
+    }
+  })
+  
+  // Forzar recálculo del scrollHeight del contenedor
+  if (scrollContainer.value) {
+    // Trigger reflow para que el navegador recalcule el scrollHeight
+    void scrollContainer.value.offsetHeight
+  }
+  
+  // Ajustar scroll para mantener el punto de zoom en la misma posición visual
+  if (isZooming.value && zoomCenter.value && scrollAtZoomStart.value && 
+      typeof zoomCenter.value.viewportX !== 'undefined') {
+    const scaleRatio = visualScale.value / touchStartScale.value
+    
+    // El punto que estaba en contentX/Y ahora está en contentX/Y * scaleRatio
+    // Para mantenerlo en la misma posición del viewport (viewportX/Y):
+    // nuevo_scroll = punto_escalado - posición_viewport
+    const newScrollX = zoomCenter.value.x * scaleRatio - zoomCenter.value.viewportX
+    const newScrollY = zoomCenter.value.y * scaleRatio - zoomCenter.value.viewportY
+    
+    // Aplicar el scroll ajustado (usando requestAnimationFrame para suavidad)
+    requestAnimationFrame(() => {
+      if (scrollContainer.value) {
+        const maxScrollX = Math.max(0, scrollContainer.value.scrollWidth - scrollContainer.value.clientWidth)
+        const maxScrollY = Math.max(0, scrollContainer.value.scrollHeight - scrollContainer.value.clientHeight)
+        
+        scrollContainer.value.scrollLeft = Math.max(0, Math.min(newScrollX, maxScrollX))
+        scrollContainer.value.scrollTop = Math.max(0, Math.min(newScrollY, maxScrollY))
+      }
+    })
+  }
+}
+
 const handleTouchStart = (event) => {
+  // Si hay un solo dedo, NO hacer nada - permitir scroll nativo
+  if (event.touches.length === 1) {
+    return // Salir inmediatamente, no bloquear el scroll
+  }
+  
+  // Solo interceptar si hay exactamente 2 dedos para zoom
   if (event.touches.length === 2) {
     // Iniciar zoom con dos dedos
     event.preventDefault()
     event.stopPropagation()
     isZooming.value = true
+    
+    // Calcular punto central entre los dos dedos (posición en viewport)
+    const touch1 = event.touches[0]
+    const touch2 = event.touches[1]
+    const centerX = (touch1.clientX + touch2.clientX) / 2
+    const centerY = (touch1.clientY + touch2.clientY) / 2
+    
+    // Guardar información del zoom para preservar posición
+    if (scrollContainer.value) {
+      const rect = scrollContainer.value.getBoundingClientRect()
+      
+      // Posición del punto en el viewport del scroll container
+      const viewportX = centerX - rect.left
+      const viewportY = centerY - rect.top
+      
+      // Posición del punto relativo al contenido (incluyendo scroll actual)
+      const contentX = scrollContainer.value.scrollLeft + viewportX
+      const contentY = scrollContainer.value.scrollTop + viewportY
+      
+      // Guardar ambos valores para calcular después
+      zoomCenter.value = {
+        x: contentX, // Posición absoluta en el contenido
+        y: contentY,
+        viewportX: viewportX, // Posición en el viewport
+        viewportY: viewportY
+      }
+      
+      // Guardar posición actual del scroll
+      scrollAtZoomStart.value = {
+        x: scrollContainer.value.scrollLeft,
+        y: scrollContainer.value.scrollTop
+      }
+    }
+    
     touchStartDistance.value = getDistance(event.touches[0], event.touches[1])
     touchStartScale.value = currentScale.value
     visualScale.value = currentScale.value
     lastTouchTime.value = Date.now()
   }
-  // Con un dedo, permitir scroll nativo (no hacer preventDefault)
 }
 
 // Función para renderizado final de alta calidad después del zoom
@@ -365,16 +488,42 @@ const scheduleFinalRender = () => {
     await renderAllPages(true)
     // Solo aplicar si todavía es el último renderizado solicitado
     if (myQueue === renderQueue.value) {
+      // Sincronizar visualScale con currentScale para quitar el transform CSS
       visualScale.value = currentScale.value
+      // Actualizar tamaños para aplicar el renderizado final (sin transform)
+      updateVisualSizes()
       renderQueue.value = 0
     }
   }, 300) // Esperar 300ms después de que termine el zoom
 }
 
 const handleTouchMove = (event) => {
+  // Si hay un solo dedo, NO hacer nada - permitir scroll nativo
+  if (event.touches.length === 1) {
+    return // Salir inmediatamente, no bloquear el scroll
+  }
+  
+  // Solo procesar zoom con 2 dedos
   if (event.touches.length === 2 && isZooming.value) {
     event.preventDefault()
     event.stopPropagation()
+    
+    // Actualizar punto central del zoom (sigue a los dedos)
+    const touch1 = event.touches[0]
+    const touch2 = event.touches[1]
+    const centerX = (touch1.clientX + touch2.clientX) / 2
+    const centerY = (touch1.clientY + touch2.clientY) / 2
+    
+    // Actualizar posición del punto central
+    if (scrollContainer.value) {
+      const rect = scrollContainer.value.getBoundingClientRect()
+      const viewportX = centerX - rect.left
+      const viewportY = centerY - rect.top
+      
+      // Actualizar viewportX/Y pero mantener contentX/Y original para el cálculo correcto
+      zoomCenter.value.viewportX = viewportX
+      zoomCenter.value.viewportY = viewportY
+    }
     
     const currentDistance = getDistance(event.touches[0], event.touches[1])
     const scaleChange = currentDistance / touchStartDistance.value
@@ -385,14 +534,14 @@ const handleTouchMove = (event) => {
     const clampedScale = Math.max(minScale.value, Math.min(mobileMaxScale, newScale))
     
     // Actualizar escala visual inmediatamente para preview
-    if (Math.abs(clampedScale - visualScale.value) > 0.01) {
+    if (Math.abs(clampedScale - visualScale.value) > 0.001) {
       visualScale.value = clampedScale
       // Actualizar también currentScale para que el indicador muestre el valor correcto
       currentScale.value = clampedScale
+      
+      // Actualizar tamaños visuales inmediatamente (preview en tiempo real)
+      updateVisualSizes()
     }
-  } else if (event.touches.length === 1) {
-    // Permitir scroll nativo con un dedo (no hacer preventDefault)
-    // Esto permite el scroll vertical normal
   }
 }
 
@@ -405,6 +554,9 @@ const handleTouchEnd = (event) => {
     isZooming.value = false
     touchStartDistance.value = 0
     touchStartScale.value = 1
+    // Limpiar información del zoom
+    zoomCenter.value = { x: 0, y: 0 }
+    scrollAtZoomStart.value = { x: 0, y: 0 }
   }
 }
 
@@ -634,19 +786,25 @@ const initPdfJs = async () => {
    canvas.style.transform = transformScale !== 1.0 ? `scale(${transformScale})` : 'none'
    canvas.style.transformOrigin = 'top left'
    
-   // Asegurar que los wrappers crezcan al mismo tamaño para permitir scroll
+   // Asegurar que los wrappers crezcan al mismo tamaño para permitir scroll (ancho y alto)
    const wrapper = canvas.parentElement // .page-container
    if (wrapper) {
      const wrapperWidth = baseVisualWidth * transformScale
+     const wrapperHeight = baseVisualHeight * transformScale
      wrapper.style.width = `${wrapperWidth}px`
      wrapper.style.minWidth = `${wrapperWidth}px`
+     wrapper.style.height = `${wrapperHeight}px`
+     wrapper.style.minHeight = `${wrapperHeight}px`
    }
    
    const pageWrapper = wrapper?.parentElement // .page-wrapper
    if (pageWrapper) {
      const pageWrapperWidth = baseVisualWidth * transformScale
+     const pageWrapperHeight = baseVisualHeight * transformScale
      pageWrapper.style.width = `${pageWrapperWidth}px`
      pageWrapper.style.minWidth = `${pageWrapperWidth}px`
+     pageWrapper.style.height = `${pageWrapperHeight}px`
+     pageWrapper.style.minHeight = `${pageWrapperHeight}px`
    }
      
      // Limpiar el canvas antes de renderizar
@@ -850,6 +1008,11 @@ const downloadPDF = async () => {
   /* Asegurar que el contenedor tenga altura para scroll */
   min-height: 0;
   height: 100%;
+  /* CRÍTICO: Asegurar que el scroll vertical funcione */
+  overflow-x: auto;
+  overflow-y: auto;
+  /* Permitir que el contenido crezca más allá del viewport */
+  will-change: scroll-position;
 }
 
 /* Cuando está con zoom, asegurar que el scroll funcione correctamente */
@@ -858,6 +1021,8 @@ const downloadPDF = async () => {
   /* Permitir scroll en ambas direcciones cuando hay zoom */
   overflow-x: auto !important;
   overflow-y: auto !important;
+  /* Crítico: priorizar scroll vertical cuando hay zoom */
+  touch-action: pan-x pan-y pinch-zoom !important;
 }
 
 /* Para móvil, asegurar que el contenedor tenga el tamaño correcto */
@@ -869,11 +1034,15 @@ const downloadPDF = async () => {
     overflow: auto !important;
     overflow-x: auto !important;
     overflow-y: auto !important;
-    /* Permitir scroll vertical siempre */
+    /* Permitir scroll vertical siempre - crítica para funcionar en móvil con zoom */
     touch-action: pan-x pan-y pinch-zoom !important;
     /* Asegurar altura para scroll */
     height: 100% !important;
     min-height: 100% !important;
+    /* Asegurar que captura eventos de scroll */
+    -webkit-overflow-scrolling: touch !important;
+    /* Permitir que el contenido tenga la altura necesaria */
+    position: relative;
   }
   
   .pdf-scroll-container.zoomed {
@@ -882,6 +1051,18 @@ const downloadPDF = async () => {
     overflow-x: auto !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
+    /* Crítico: asegurar scroll vertical funcione */
+    touch-action: pan-x pan-y pinch-zoom !important;
+    /* Asegurar que el contenedor pueda scrollear verticalmente */
+    max-height: 100vh !important;
+    height: 100% !important;
+  }
+  
+  /* Asegurar que el contenido PDF pueda crecer verticalmente */
+  .pdf-content-wrapper {
+    /* En móvil, el contenido debe poder crecer para permitir scroll */
+    min-height: auto !important;
+    height: auto !important;
   }
 }
 
@@ -893,14 +1074,24 @@ const downloadPDF = async () => {
   gap: 1rem;
   position: relative;
   margin: 0 auto;
+  /* Asegurar que el wrapper pueda crecer para permitir scroll vertical */
+  min-height: 100%;
+  width: 100%;
+  /* CRÍTICO: Permitir que el contenido crezca verticalmente para scroll */
+  height: auto;
+  /* Asegurar que el contenido tenga el espacio necesario */
+  flex-shrink: 0;
 }
 
 /* Wrapper de cada página */
 .page-wrapper {
   width: max-content;
+  height: max-content;
   margin: 0 auto;
   display: flex;
   justify-content: center;
+  /* Asegurar que el wrapper pueda crecer para permitir scroll */
+  min-height: 0;
 }
 
 /* Canvas responsivo */
@@ -908,11 +1099,34 @@ canvas {
   display: block;
   max-width: none !important; /* Importante para permitir que el canvas crezca con el zoom */
   height: auto;
-  /* Permitir scroll pero mantener pinch-zoom controlado */
+  /* Permitir scroll vertical y horizontal, y pinch-zoom */
   touch-action: pan-x pan-y pinch-zoom;
+  /* No bloquear eventos de pointer para permitir scroll nativo en móvil */
+  pointer-events: auto;
   /* Asegurar que los transforms funcionen correctamente */
   will-change: transform;
   transform-origin: top left;
+}
+
+/* Cuando hay zoom, asegurar que el canvas no bloquee el scroll */
+@media (max-width: 768px) {
+  canvas {
+    /* En móvil, siempre permitir scroll nativo en todas las direcciones */
+    touch-action: pan-x pan-y pinch-zoom !important;
+    /* No interceptar eventos de touch para scroll */
+    pointer-events: auto !important;
+    /* Asegurar que no bloquea el scroll pasivo */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  /* Wrappers también deben permitir scroll */
+  .page-container,
+  .page-wrapper {
+    touch-action: pan-x pan-y pinch-zoom !important;
+    pointer-events: auto !important;
+  }
 }
 
 /* Contenedor del PDF con zoom */
@@ -939,6 +1153,9 @@ canvas {
   align-items: center;
   padding: 0.5rem;
   width: max-content;
+  height: max-content;
+  /* Permitir que el contenedor crezca verticalmente */
+  min-height: 0;
 }
 
 /* Hover effects */
