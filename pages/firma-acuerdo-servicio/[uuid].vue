@@ -409,9 +409,10 @@ const updateVisualSizes = () => {
     void scrollContainer.value.offsetHeight
   }
   
-  // Ajustar scroll para mantener el punto de zoom en la misma posición visual
-  if (isZooming.value && zoomCenter.value && scrollAtZoomStart.value && 
-      typeof zoomCenter.value.viewportX !== 'undefined') {
+  // Ajustar scroll para centrar el punto de zoom (durante el zoom y después de terminar)
+  // Verificamos zoomCenter en lugar de solo isZooming para centrar también durante el delay del render final
+  if (zoomCenter.value && scrollAtZoomStart.value && 
+      typeof zoomCenter.value.viewportX !== 'undefined' && zoomCenter.value.x > 0) {
     // El punto está guardado en el contenido BASE (sin escalar)
     // Cuando escalamos a visualScale, necesitamos calcular dónde está ese punto en el contenido escalado
     
@@ -419,15 +420,19 @@ const updateVisualSizes = () => {
     const pointInScaledContentX = zoomCenter.value.x * visualScale.value
     const pointInScaledContentY = zoomCenter.value.y * visualScale.value
     
-    // Calcular nueva posición del scroll: el punto en el contenido escalado menos la posición en el viewport
-    // Esto mantiene el punto bajo los dedos en la misma posición en la pantalla
-    const newScrollX = pointInScaledContentX - zoomCenter.value.viewportX
-    const newScrollY = pointInScaledContentY - zoomCenter.value.viewportY
-    
-    // Aplicar el scroll ajustado inmediatamente (sin requestAnimationFrame para respuesta instantánea)
+    // Calcular para centrar el punto en el viewport
+    // Restamos la mitad del ancho/alto del viewport para centrarlo
     if (scrollContainer.value) {
-      const maxScrollX = Math.max(0, scrollContainer.value.scrollWidth - scrollContainer.value.clientWidth)
-      const maxScrollY = Math.max(0, scrollContainer.value.scrollHeight - scrollContainer.value.clientHeight)
+      const viewportWidth = scrollContainer.value.clientWidth
+      const viewportHeight = scrollContainer.value.clientHeight
+      
+      // Nueva posición del scroll para centrar el punto
+      const newScrollX = pointInScaledContentX - (viewportWidth / 2)
+      const newScrollY = pointInScaledContentY - (viewportHeight / 2)
+      
+      // Aplicar el scroll ajustado con límites
+      const maxScrollX = Math.max(0, scrollContainer.value.scrollWidth - viewportWidth)
+      const maxScrollY = Math.max(0, scrollContainer.value.scrollHeight - viewportHeight)
       
       scrollContainer.value.scrollLeft = Math.max(0, Math.min(newScrollX, maxScrollX))
       scrollContainer.value.scrollTop = Math.max(0, Math.min(newScrollY, maxScrollY))
@@ -519,6 +524,29 @@ const scheduleFinalRender = () => {
       visualScale.value = currentScale.value
       // Actualizar tamaños para aplicar el renderizado final (sin transform)
       updateVisualSizes()
+      
+      // Centrar el punto de zoom al final (después del renderizado de alta calidad)
+      if (zoomCenter.value && scrollContainer.value && typeof zoomCenter.value.viewportX !== 'undefined') {
+        const pointInScaledContentX = zoomCenter.value.x * currentScale.value
+        const pointInScaledContentY = zoomCenter.value.y * currentScale.value
+        
+        const viewportWidth = scrollContainer.value.clientWidth
+        const viewportHeight = scrollContainer.value.clientHeight
+        
+        const newScrollX = pointInScaledContentX - (viewportWidth / 2)
+        const newScrollY = pointInScaledContentY - (viewportHeight / 2)
+        
+        const maxScrollX = Math.max(0, scrollContainer.value.scrollWidth - viewportWidth)
+        const maxScrollY = Math.max(0, scrollContainer.value.scrollHeight - viewportHeight)
+        
+        scrollContainer.value.scrollLeft = Math.max(0, Math.min(newScrollX, maxScrollX))
+        scrollContainer.value.scrollTop = Math.max(0, Math.min(newScrollY, maxScrollY))
+      }
+      
+      // Limpiar información del zoom después de centrar
+      zoomCenter.value = { x: 0, y: 0 }
+      scrollAtZoomStart.value = { x: 0, y: 0 }
+      
       renderQueue.value = 0
     }
   }, 300) // Esperar 300ms después de que termine el zoom
@@ -570,9 +598,8 @@ const handleTouchEnd = (event) => {
     isZooming.value = false
     touchStartDistance.value = 0
     touchStartScale.value = 1
-    // Limpiar información del zoom
-    zoomCenter.value = { x: 0, y: 0 }
-    scrollAtZoomStart.value = { x: 0, y: 0 }
+    // NO limpiar zoomCenter aquí - se mantendrá hasta después del renderizado final
+    // para poder centrar el punto al final
   }
 }
 
