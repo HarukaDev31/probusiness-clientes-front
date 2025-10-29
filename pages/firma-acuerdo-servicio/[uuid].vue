@@ -354,8 +354,11 @@ const getDistance = (touch1, touch2) => {
 const updateVisualSizes = () => {
   if (!scrollContainer.value) return
   
-  // Calcular el factor de escala visual
-  const transformScale = visualScale.value / currentScale.value
+  // Calcular el factor de escala visual para el transform CSS
+  // Durante el zoom: usar touchStartScale como base (no cambiar currentScale hasta terminar zoom)
+  // Después del zoom: visualScale === currentScale, así que transformScale será ~1.0
+  const baseScale = isZooming.value ? touchStartScale.value : currentScale.value
+  const transformScale = visualScale.value / baseScale
   
   // Actualizar todos los canvas y wrappers
   Object.keys(pdfCanvases.value).forEach((pageNum) => {
@@ -367,35 +370,42 @@ const updateVisualSizes = () => {
     const pageWrapper = wrapper?.parentElement // .page-wrapper
     
     if (wrapper && pageWrapper) {
-      // Obtener el ancho y alto base del canvas (antes del transform)
+      // Obtener el ancho y alto base del canvas
+      // Durante zoom en tiempo real, usar las dimensiones originales sin transform
       const baseWidth = parseFloat(canvas.style.width) || canvas.offsetWidth
       const baseHeight = parseFloat(canvas.style.height) || canvas.offsetHeight
       
       if (baseWidth > 0 && baseHeight > 0) {
-        // Aplicar transform CSS para preview inmediato
-        canvas.style.transform = transformScale !== 1.0 ? `scale(${transformScale})` : 'none'
+        // Aplicar transform CSS para preview inmediato en tiempo real
+        if (transformScale !== 1.0 && Math.abs(transformScale - 1.0) > 0.001) {
+          canvas.style.transform = `scale(${transformScale})`
+        } else {
+          canvas.style.transform = 'none'
+        }
         canvas.style.transformOrigin = 'top left'
         
-        // Actualizar tamaños de wrappers (ancho y alto) para que el scroll funcione correctamente
+        // Actualizar tamaños de wrappers (ancho y alto) inmediatamente
+        // Estos tamaños deben reflejar el tamaño visual real después del transform
         const newWidth = baseWidth * transformScale
         const newHeight = baseHeight * transformScale
         
+        // Aplicar cambios inmediatamente
         wrapper.style.width = `${newWidth}px`
         wrapper.style.minWidth = `${newWidth}px`
         wrapper.style.height = `${newHeight}px`
         wrapper.style.minHeight = `${newHeight}px`
         
-      pageWrapper.style.width = `${newWidth}px`
-      pageWrapper.style.minWidth = `${newWidth}px`
-      pageWrapper.style.height = `${newHeight}px`
-      pageWrapper.style.minHeight = `${newHeight}px`
+        pageWrapper.style.width = `${newWidth}px`
+        pageWrapper.style.minWidth = `${newWidth}px`
+        pageWrapper.style.height = `${newHeight}px`
+        pageWrapper.style.minHeight = `${newHeight}px`
       }
     }
   })
   
   // Forzar recálculo del scrollHeight del contenedor
   if (scrollContainer.value) {
-    // Trigger reflow para que el navegador recalcule el scrollHeight
+    // Trigger reflow para que el navegador recalcule el scrollHeight inmediatamente
     void scrollContainer.value.offsetHeight
   }
   
@@ -404,22 +414,27 @@ const updateVisualSizes = () => {
       typeof zoomCenter.value.viewportX !== 'undefined') {
     const scaleRatio = visualScale.value / touchStartScale.value
     
-    // El punto que estaba en contentX/Y ahora está en contentX/Y * scaleRatio
-    // Para mantenerlo en la misma posición del viewport (viewportX/Y):
-    // nuevo_scroll = punto_escalado - posición_viewport
-    const newScrollX = zoomCenter.value.x * scaleRatio - zoomCenter.value.viewportX
-    const newScrollY = zoomCenter.value.y * scaleRatio - zoomCenter.value.viewportY
+    // Calcular nueva posición del scroll para mantener el punto fijo
+    // El punto original en el contenido (zoomCenter.value.x/y) se escala
+    // Queremos que el punto en la pantalla (viewportX/Y) se mantenga fijo
     
-    // Aplicar el scroll ajustado (usando requestAnimationFrame para suavidad)
-    requestAnimationFrame(() => {
-      if (scrollContainer.value) {
-        const maxScrollX = Math.max(0, scrollContainer.value.scrollWidth - scrollContainer.value.clientWidth)
-        const maxScrollY = Math.max(0, scrollContainer.value.scrollHeight - scrollContainer.value.clientHeight)
-        
-        scrollContainer.value.scrollLeft = Math.max(0, Math.min(newScrollX, maxScrollX))
-        scrollContainer.value.scrollTop = Math.max(0, Math.min(newScrollY, maxScrollY))
-      }
-    })
+    // Posición del punto en el contenido escalado
+    const scaledPointX = zoomCenter.value.x * scaleRatio
+    const scaledPointY = zoomCenter.value.y * scaleRatio
+    
+    // Calcular nueva posición del scroll: el punto escalado menos la posición relativa al viewport
+    // Esto mantiene el punto bajo los dedos en la misma posición en la pantalla
+    const newScrollX = scaledPointX - zoomCenter.value.viewportX
+    const newScrollY = scaledPointY - zoomCenter.value.viewportY
+    
+    // Aplicar el scroll ajustado inmediatamente (sin requestAnimationFrame para respuesta instantánea)
+    if (scrollContainer.value) {
+      const maxScrollX = Math.max(0, scrollContainer.value.scrollWidth - scrollContainer.value.clientWidth)
+      const maxScrollY = Math.max(0, scrollContainer.value.scrollHeight - scrollContainer.value.clientHeight)
+      
+      scrollContainer.value.scrollLeft = Math.max(0, Math.min(newScrollX, maxScrollX))
+      scrollContainer.value.scrollTop = Math.max(0, Math.min(newScrollY, maxScrollY))
+    }
   }
 }
 
@@ -482,6 +497,10 @@ const scheduleFinalRender = () => {
     clearTimeout(renderTimeout.value)
   }
   renderTimeout.value = setTimeout(async () => {
+    // Actualizar currentScale al valor final de visualScale antes de renderizar
+    // Esto asegura que el renderizado se haga con el tamaño correcto
+    currentScale.value = visualScale.value
+    
     // Renderizar en alta calidad cuando termine el zoom
     renderQueue.value++
     const myQueue = renderQueue.value
@@ -508,22 +527,8 @@ const handleTouchMove = (event) => {
     event.preventDefault()
     event.stopPropagation()
     
-    // Actualizar punto central del zoom (sigue a los dedos)
-    const touch1 = event.touches[0]
-    const touch2 = event.touches[1]
-    const centerX = (touch1.clientX + touch2.clientX) / 2
-    const centerY = (touch1.clientY + touch2.clientY) / 2
-    
-    // Actualizar posición del punto central
-    if (scrollContainer.value) {
-      const rect = scrollContainer.value.getBoundingClientRect()
-      const viewportX = centerX - rect.left
-      const viewportY = centerY - rect.top
-      
-      // Actualizar viewportX/Y pero mantener contentX/Y original para el cálculo correcto
-      zoomCenter.value.viewportX = viewportX
-      zoomCenter.value.viewportY = viewportY
-    }
+    // NO actualizar el punto central durante el zoom - mantener el punto original fijo
+    // Esto asegura que el contenido no se mueva mientras se hace zoom
     
     const currentDistance = getDistance(event.touches[0], event.touches[1])
     const scaleChange = currentDistance / touchStartDistance.value
@@ -533,13 +538,16 @@ const handleTouchMove = (event) => {
     const mobileMaxScale = isMobile.value ? 5.0 : maxScale.value
     const clampedScale = Math.max(minScale.value, Math.min(mobileMaxScale, newScale))
     
-    // Actualizar escala visual inmediatamente para preview
-    if (Math.abs(clampedScale - visualScale.value) > 0.001) {
+    // Actualizar escala visual inmediatamente para preview en tiempo real
+    // NO actualizar currentScale durante el zoom - solo visualScale para el preview
+    // currentScale solo se actualizará cuando termine el zoom y se renderice en alta calidad
+    if (Math.abs(clampedScale - visualScale.value) > 0.0001) {
       visualScale.value = clampedScale
-      // Actualizar también currentScale para que el indicador muestre el valor correcto
-      currentScale.value = clampedScale
+      // NO actualizar currentScale aquí - mantener el valor base para el cálculo del transform
+      // Esto permite que el transform funcione correctamente: visualScale / touchStartScale
       
       // Actualizar tamaños visuales inmediatamente (preview en tiempo real)
+      // Esto hace que el canvas crezca mientras haces zoom
       updateVisualSizes()
     }
   }
