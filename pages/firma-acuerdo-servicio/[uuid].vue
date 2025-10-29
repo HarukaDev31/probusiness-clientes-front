@@ -412,20 +412,17 @@ const updateVisualSizes = () => {
   // Ajustar scroll para mantener el punto de zoom en la misma posición visual
   if (isZooming.value && zoomCenter.value && scrollAtZoomStart.value && 
       typeof zoomCenter.value.viewportX !== 'undefined') {
-    const scaleRatio = visualScale.value / touchStartScale.value
+    // El punto está guardado en el contenido BASE (sin escalar)
+    // Cuando escalamos a visualScale, necesitamos calcular dónde está ese punto en el contenido escalado
     
-    // Calcular nueva posición del scroll para mantener el punto fijo
-    // El punto original en el contenido (zoomCenter.value.x/y) se escala
-    // Queremos que el punto en la pantalla (viewportX/Y) se mantenga fijo
+    // Posición del punto en el contenido escalado con la nueva escala
+    const pointInScaledContentX = zoomCenter.value.x * visualScale.value
+    const pointInScaledContentY = zoomCenter.value.y * visualScale.value
     
-    // Posición del punto en el contenido escalado
-    const scaledPointX = zoomCenter.value.x * scaleRatio
-    const scaledPointY = zoomCenter.value.y * scaleRatio
-    
-    // Calcular nueva posición del scroll: el punto escalado menos la posición relativa al viewport
+    // Calcular nueva posición del scroll: el punto en el contenido escalado menos la posición en el viewport
     // Esto mantiene el punto bajo los dedos en la misma posición en la pantalla
-    const newScrollX = scaledPointX - zoomCenter.value.viewportX
-    const newScrollY = scaledPointY - zoomCenter.value.viewportY
+    const newScrollX = pointInScaledContentX - zoomCenter.value.viewportX
+    const newScrollY = pointInScaledContentY - zoomCenter.value.viewportY
     
     // Aplicar el scroll ajustado inmediatamente (sin requestAnimationFrame para respuesta instantánea)
     if (scrollContainer.value) {
@@ -465,22 +462,33 @@ const handleTouchStart = (event) => {
       const viewportX = centerX - rect.left
       const viewportY = centerY - rect.top
       
-      // Posición del punto relativo al contenido (incluyendo scroll actual)
-      const contentX = scrollContainer.value.scrollLeft + viewportX
-      const contentY = scrollContainer.value.scrollTop + viewportY
+      // IMPORTANTE: Calcular el punto en el contenido BASE (sin escalar)
+      // Si ya hay zoom previo (currentScale > 1), necesitamos convertir el punto
+      // del espacio escalado al espacio base para escalarlo correctamente
+      const scrollX = scrollContainer.value.scrollLeft
+      const scrollY = scrollContainer.value.scrollTop
       
-      // Guardar ambos valores para calcular después
+      // El punto en el contenido escalado actual (donde tocamos)
+      const pointInScaledContentX = scrollX + viewportX
+      const pointInScaledContentY = scrollY + viewportY
+      
+      // Convertir al contenido BASE dividiendo por la escala actual
+      // Esto nos da la posición en el contenido sin escalar
+      const pointInBaseX = pointInScaledContentX / currentScale.value
+      const pointInBaseY = pointInScaledContentY / currentScale.value
+      
+      // Guardar el punto en el contenido base y en el viewport
       zoomCenter.value = {
-        x: contentX, // Posición absoluta en el contenido
-        y: contentY,
-        viewportX: viewportX, // Posición en el viewport
+        x: pointInBaseX, // Posición en el contenido BASE (sin escalar)
+        y: pointInBaseY,
+        viewportX: viewportX, // Posición en el viewport (fija)
         viewportY: viewportY
       }
       
       // Guardar posición actual del scroll
       scrollAtZoomStart.value = {
-        x: scrollContainer.value.scrollLeft,
-        y: scrollContainer.value.scrollTop
+        x: scrollX,
+        y: scrollY
       }
     }
     
