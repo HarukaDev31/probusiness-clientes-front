@@ -49,12 +49,12 @@
             @pointerup="handlePointerUp"
             @pointercancel="handlePointerUp"
            >
-             <!-- Indicador de zoom para móvil -->
+             <!-- Indicador de zoom para móvil (mostrar cuando está zooming o cuando visualScale != currentScale) -->
              <div 
-               v-if="isMobile && isZooming" 
+               v-if="isMobile && (isZooming || Math.abs(visualScale - currentScale) > 0.01)" 
                class="absolute top-4 right-4 z-20 bg-black bg-opacity-75 text-white px-3 py-2 rounded-lg text-sm font-medium zoom-indicator"
              >
-               {{ Math.round(currentScale * 100) }}%
+               {{ Math.round(visualScale * 100) }}%
              </div>
              
              <!-- Skeleton mientras se carga el PDF (overlay) -->
@@ -293,6 +293,8 @@ const lastTouchTime = ref(0)
 const renderTimeout = ref(null)
 const isDragging = ref(false)
 const lastPointer = ref({ x: 0, y: 0 })
+const visualScale = ref(1.0) // Escala visual para preview inmediato
+const renderQueue = ref(0) // Contador para controlar el renderizado final
  
  // Estado de la firma (ya no se usa, se envía directamente)
 
@@ -345,20 +347,28 @@ const handleTouchStart = (event) => {
     isZooming.value = true
     touchStartDistance.value = getDistance(event.touches[0], event.touches[1])
     touchStartScale.value = currentScale.value
+    visualScale.value = currentScale.value
     lastTouchTime.value = Date.now()
-  } else if (event.touches.length === 1) {
-    // Scroll nativo con un dedo (no detener propagación)
   }
+  // Con un dedo, permitir scroll nativo (no hacer preventDefault)
 }
 
-// Función optimizada para renderizado durante zoom táctil
-const debouncedRender = () => {
+// Función para renderizado final de alta calidad después del zoom
+const scheduleFinalRender = () => {
   if (renderTimeout.value) {
     clearTimeout(renderTimeout.value)
   }
-  renderTimeout.value = setTimeout(() => {
-    renderAllPages()
-  }, 50) // Debounce de 50ms para mejor rendimiento
+  renderTimeout.value = setTimeout(async () => {
+    // Renderizar en alta calidad cuando termine el zoom
+    renderQueue.value++
+    const myQueue = renderQueue.value
+    await renderAllPages(true)
+    // Solo aplicar si todavía es el último renderizado solicitado
+    if (myQueue === renderQueue.value) {
+      visualScale.value = currentScale.value
+      renderQueue.value = 0
+    }
+  }, 300) // Esperar 300ms después de que termine el zoom
 }
 
 const handleTouchMove = (event) => {
@@ -374,18 +384,24 @@ const handleTouchMove = (event) => {
     const mobileMaxScale = isMobile.value ? 5.0 : maxScale.value
     const clampedScale = Math.max(minScale.value, Math.min(mobileMaxScale, newScale))
     
-    // Solo actualizar si hay un cambio significativo (más suave)
-    if (Math.abs(clampedScale - currentScale.value) > 0.02) {
+    // Actualizar escala visual inmediatamente para preview
+    if (Math.abs(clampedScale - visualScale.value) > 0.01) {
+      visualScale.value = clampedScale
+      // Actualizar también currentScale para que el indicador muestre el valor correcto
       currentScale.value = clampedScale
-      
-      // Usar renderizado optimizado
-      debouncedRender()
     }
+  } else if (event.touches.length === 1) {
+    // Permitir scroll nativo con un dedo (no hacer preventDefault)
+    // Esto permite el scroll vertical normal
   }
 }
 
 const handleTouchEnd = (event) => {
   if (event.touches.length < 2) {
+    if (isZooming.value) {
+      // Cuando termina el zoom, programar renderizado de alta calidad
+      scheduleFinalRender()
+    }
     isZooming.value = false
     touchStartDistance.value = 0
     touchStartScale.value = 1
@@ -506,8 +522,8 @@ const initPdfJs = async () => {
  }
 
  // Renderizar todas las páginas
- const renderAllPages = async () => {
-   if (!pdfDoc.value || isRendering.value) return
+ const renderAllPages = async (isFinalRender = false) => {
+   if (!pdfDoc.value || (isRendering.value && !isFinalRender)) return
    
    isRendering.value = true
    
@@ -532,14 +548,16 @@ const initPdfJs = async () => {
     })
     
     // En desktop, iniciar siempre a 100%. En móvil, ajustar al ancho disponible (mínimo 1.0)
-    if (currentScale.value === 1.0) {
+    if (currentScale.value === 1.0 && visualScale.value === 1.0) {
       if (isMobile.value) {
         const containerWidth = (scrollContainer.value?.clientWidth ?? pdfContainer.value.clientWidth) - 32
         const scaleX = containerWidth / viewport.width
         currentScale.value = Math.max(1.0, scaleX)
+        visualScale.value = currentScale.value
       } else {
         // Desktop siempre inicia a 100%
         currentScale.value = 1.0
+        visualScale.value = 1.0
       }
       console.log('🔧 Escala inicial establecida:', currentScale.value, isMobile.value ? '(móvil)' : '(desktop 100%)')
     }
@@ -603,23 +621,32 @@ const initPdfJs = async () => {
    canvas.width = baseViewport.width * containerScale * pixelRatio
    canvas.height = baseViewport.height * containerScale * pixelRatio
    
-   // Tamaño visual del canvas (ajustado por el zoom actual del usuario)
-   const visualWidth = baseViewport.width * containerScale * currentScale.value
-   const visualHeight = baseViewport.height * containerScale * currentScale.value
-   canvas.style.width = `${visualWidth}px`
-   canvas.style.height = `${visualHeight}px`
+   // Tamaño visual del canvas (usar currentScale para el tamaño base)
+   const baseVisualWidth = baseViewport.width * containerScale * currentScale.value
+   const baseVisualHeight = baseViewport.height * containerScale * currentScale.value
+   
+   // El tamaño visual real será ajustado por visualScale mediante CSS transform
+   canvas.style.width = `${baseVisualWidth}px`
+   canvas.style.height = `${baseVisualHeight}px`
+   
+   // Aplicar transform CSS para preview inmediato del zoom
+   const transformScale = visualScale.value / currentScale.value
+   canvas.style.transform = transformScale !== 1.0 ? `scale(${transformScale})` : 'none'
+   canvas.style.transformOrigin = 'top left'
    
    // Asegurar que los wrappers crezcan al mismo tamaño para permitir scroll
    const wrapper = canvas.parentElement // .page-container
    if (wrapper) {
-     wrapper.style.width = `${visualWidth}px`
-     wrapper.style.minWidth = `${visualWidth}px`
+     const wrapperWidth = baseVisualWidth * transformScale
+     wrapper.style.width = `${wrapperWidth}px`
+     wrapper.style.minWidth = `${wrapperWidth}px`
    }
    
    const pageWrapper = wrapper?.parentElement // .page-wrapper
    if (pageWrapper) {
-     pageWrapper.style.width = `${visualWidth}px`
-     pageWrapper.style.minWidth = `${visualWidth}px`
+     const pageWrapperWidth = baseVisualWidth * transformScale
+     pageWrapper.style.width = `${pageWrapperWidth}px`
+     pageWrapper.style.minWidth = `${pageWrapperWidth}px`
    }
      
      // Limpiar el canvas antes de renderizar
@@ -649,6 +676,7 @@ const initPdfJs = async () => {
  const zoomIn = async () => {
    if (currentScale.value < maxScale.value) {
      currentScale.value = Math.min(maxScale.value, currentScale.value + 0.25)
+     visualScale.value = currentScale.value
      await renderAllPages()
    }
  }
@@ -656,6 +684,7 @@ const initPdfJs = async () => {
  const zoomOut = async () => {
    if (currentScale.value > minScale.value) {
      currentScale.value = Math.max(minScale.value, currentScale.value - 0.25)
+     visualScale.value = currentScale.value
      await renderAllPages()
    }
  }
@@ -816,7 +845,11 @@ const downloadPDF = async () => {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   position: relative;
-  touch-action: pan-x pan-y;
+  /* Permitir scroll vertical y horizontal siempre */
+  touch-action: pan-x pan-y pinch-zoom;
+  /* Asegurar que el contenedor tenga altura para scroll */
+  min-height: 0;
+  height: 100%;
 }
 
 /* Cuando está con zoom, asegurar que el scroll funcione correctamente */
@@ -834,11 +867,20 @@ const downloadPDF = async () => {
     max-height: 100%;
     /* Importante: permitir que el contenido crezca más allá del viewport */
     overflow: auto !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    /* Permitir scroll vertical siempre */
+    touch-action: pan-x pan-y pinch-zoom !important;
+    /* Asegurar altura para scroll */
+    height: 100% !important;
+    min-height: 100% !important;
   }
   
   .pdf-scroll-container.zoomed {
-    /* En móvil con zoom, permitir scroll libre */
+    /* En móvil con zoom, permitir scroll libre en ambas direcciones */
     overflow: scroll !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
   }
 }
@@ -866,7 +908,11 @@ canvas {
   display: block;
   max-width: none !important; /* Importante para permitir que el canvas crezca con el zoom */
   height: auto;
-  touch-action: none; /* Desactivar gestos del navegador en el canvas */
+  /* Permitir scroll pero mantener pinch-zoom controlado */
+  touch-action: pan-x pan-y pinch-zoom;
+  /* Asegurar que los transforms funcionen correctamente */
+  will-change: transform;
+  transform-origin: top left;
 }
 
 /* Contenedor del PDF con zoom */
