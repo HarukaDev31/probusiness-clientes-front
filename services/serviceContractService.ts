@@ -12,6 +12,7 @@ export interface ServiceContractResponse {
     updated_at?: string
     cotizacion_contrato_url: string
     cotizacion_contrato_firmado_url?: string // URL del contrato firmado si existe
+    cod_contrato?: string
   }
   message?: string
 }

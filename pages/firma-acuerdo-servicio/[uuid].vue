@@ -4,6 +4,9 @@
     <UCard class="m-4 shadow-lg" ref="headerCard">
       <template #header>
         <div class="text-center">
+          <h1 class="text-2xl font-bold text-gray-900">
+            Contrato de Servicio: {{ codContrato }}
+          </h1>
               <h1 class="text-2xl font-bold text-gray-900">
                 {{ hasSignedContract ? 'Contrato de Servicio Firmado' : 'Firma de Acuerdo de Servicio' }}
               </h1>
@@ -253,7 +256,8 @@ const previousTheme = ref(colorMode.preference)
    hasContract, 
    hasSignedContract,
    isLoading: contractLoading,
-   isSigning 
+   isSigning ,
+   codContrato
  } = useServiceContract()
 
 const { uuid } = useRoute().params

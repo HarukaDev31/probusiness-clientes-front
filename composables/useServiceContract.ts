@@ -11,6 +11,7 @@ export interface ServiceContractData {
   size?: number
   created_at?: string
   updated_at?: string
+  cod_contrato?: string
 }
 
 export interface SignatureData {
@@ -61,7 +62,7 @@ export function useServiceContract() {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const isSigning = ref(false)
-
+  const codContrato =computed(() => contractData.value?.cod_contrato || '')
   // Computed
   const hasContract = computed(() => !!contractData.value?.cotizacion_contrato_url)
   const hasSignedContract = computed(() => !!contractData.value?.cotizacion_contrato_firmado_url)
@@ -98,7 +99,8 @@ export function useServiceContract() {
              filename: response.data.filename,
              size: response.data.size,
              created_at: response.data.created_at,
-             updated_at: response.data.updated_at
+             updated_at: response.data.updated_at,
+             cod_contrato: response.data.cod_contrato
            }
           console.log('✅ useServiceContract: Contrato obtenido exitosamente:', contractData.value)
           console.log('🔧 Contrato firmado disponible:', !!cleanSignedUrl)
@@ -235,7 +237,7 @@ export function useServiceContract() {
     hasSignedContract,
     contractUrl,
     contractUuid,
-    
+    codContrato,
     // Métodos
     getServiceContract,
     signServiceContract,
