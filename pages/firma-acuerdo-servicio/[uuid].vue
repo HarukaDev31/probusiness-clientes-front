@@ -5,14 +5,12 @@
       <template #header>
         <div class="text-center">
           <h1 class="text-2xl font-bold text-gray-900">
-            Contrato de Servicio: {{ codContrato }}
-          </h1>
-              <h1 class="text-2xl font-bold text-gray-900">
-                {{ hasSignedContract ? 'Contrato de Servicio Firmado' : 'Firma de Acuerdo de Servicio' }}
-              </h1>
-              <p v-if="hasSignedContract" class="text-sm text-green-600 mt-2">
+            Contrato de Servicio: {{ codContrato }}  <span v-if="hasSignedContract" class="text-sm text-green-600 mt-2">
                 ✅ Este contrato ya ha sido firmado
-              </p>
+              </span>
+          </h1>
+             
+             
           </div>
             
        
