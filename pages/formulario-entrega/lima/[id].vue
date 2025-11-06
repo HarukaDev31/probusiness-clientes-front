@@ -315,10 +315,6 @@ const currentStep = ref(1)
 const loading = ref(false)
 const showSuccessModal = ref(false)
 
-// Watcher para depurar cuándo cambia el estado del modal
-watch(showSuccessModal, (newValue, oldValue) => {
-  console.log(`Modal cambió de ${oldValue} a ${newValue}`)
-}, { immediate: true })
 
 
 // Configuración de pasos
@@ -436,7 +432,7 @@ const reservationSummary = computed(() => {
       : '',
     persona: formData.nombreCompleto || '',
     dni: formData.dni || '',
-    distrito: formData.distritoDestino?.toString() || '',
+    distrito: formData.distritoDestino,
     tipoComprobante: String(typeof formData.tipoComprobante === 'object' && formData.tipoComprobante ? formData.tipoComprobante.label : formData.tipoComprobante || ''),
     importador: String(typeof formData.importador === 'object' && formData.importador ? formData.importador.label : formData.importador || '')
   }
