@@ -555,7 +555,7 @@ const finalizarReserva = async () => {
           tipoComprobante: formData.tipoComprobante.value,
           fechaEntrega: formData.fechaEntrega,
           horarioSeleccionado: formData.horarioSeleccionado,
-          distritoDestino: formData.distritoDestino || ''
+          distritoDestino: formData.distritoDestino?.value || ''
         }
         
         const response = await saveDeliveryLima(data)
