@@ -76,7 +76,7 @@
             <UIcon name="i-heroicons-map" class="w-5 h-5 text-gray-500 mt-0.5" />
             <div>
               <span class="font-medium text-gray-700 dark:text-gray-300">Distrito:</span>
-              <span class="ml-2 text-gray-900 dark:text-white">{{ reservationData.distrito }}</span>
+              <span class="ml-2 text-gray-900 dark:text-white">{{ reservationData.distrito?reservationData.distrito?.value:reservationData.distrito }}</span>
             </div>
           </div>
 
