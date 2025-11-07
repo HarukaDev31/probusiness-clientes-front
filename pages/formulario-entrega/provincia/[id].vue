@@ -603,7 +603,7 @@ const reservationSummary = computed(() => ({
   dni: formData.destinatarioDni || formData.destinatarioRuc || '',
   agencia: formData.agenciaEnvio?.label || '',
   provincia: formData.destinatarioProvincia?.label || '',
-  distrito: formData.destinatarioDistrito?.label || '',
+  distrito: formData.destinatarioDistrito || '',
   tipoComprobante: formData.tipoComprobante?.label || '',
   importador: formData.importador?.label || ''
 }))
