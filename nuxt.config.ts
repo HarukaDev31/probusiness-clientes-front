@@ -16,7 +16,7 @@ export default defineNuxtConfig({
   ],
   app: {
     head: {
-      title: 'ProBusiness - Intranet | Sistema de gestion Interna',
+      title: 'ProBusiness | Sistema de Importación',
 
       link: [
         { rel: 'icon', type: 'image/x-icon', href: 'https://intranet.probusiness.pe/assets/img/logos/probusiness.png' },
