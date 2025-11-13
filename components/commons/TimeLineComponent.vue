@@ -41,7 +41,7 @@ const props = defineProps({
 // Mapear los eventos al formato que espera UTimeline
 const timelineItems = computed<TimelineItem[]>(() => {
   return props.events.map((event, index) => ({
-    date: formatDate(event.date),
+    date: formatDateTimeToDmy(event.date),
     title: event.name,
     description: (event.description || `${event.name} `).replace(/\n/g, '<br>'),
     icon: getStatusIcon(event.status, 'i-heroicons-clock'),
