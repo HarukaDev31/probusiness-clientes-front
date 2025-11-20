@@ -34,7 +34,8 @@ export interface RegisterCredentials {
   repeatPassword: string
   dni: string
   fechaNacimiento: string
-  medioEncontrado: string
+  no_como_entero: number | null
+  no_otros_como_entero_empresa?: string | null
   departamento?: number
   provincia?: number
   distrito?: number
@@ -66,22 +67,7 @@ export interface ApiLoginResponse {
   error?: string
 }
 
-export interface RegisterCredentials {
-  email: string
-  password: string
-  name: string
-  role?: string
-}
-
-export interface RegisterResponse {
-  success: boolean
-  data: {
-    user: User
-    token: string
-  } | null
-  message?: string
-  error?: string
-}
+// NOTE: Removed duplicate RegisterCredentials/RegisterResponse definitions above.
 
 export interface PasswordResetRequest {
   email: string

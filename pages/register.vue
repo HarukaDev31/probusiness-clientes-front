@@ -158,7 +158,7 @@
                             <div class="grid grid-cols-3 gap-1 sm:gap-3 mb-2 sm:mb-4">
                                 <select 
                                     v-model="selectedDay"
-                                    class="px-1 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs sm:text-sm w-full"
+                                    class="px-1 sm:px-3 py-1 sm:py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs sm:text-sm w-full"
                                 >
                                     <option value="">Día</option>
                                     <option v-for="day in dayOptions" :key="day.value" :value="day.value">
@@ -168,7 +168,7 @@
                                 
                                 <select 
                                     v-model="selectedMonth"
-                                    class="px-1 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs sm:text-sm w-full"
+                                    class="px-1 sm:px-3 py-1 sm:py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs sm:text-sm w-full"
                                 >
                                     <option value="">Mes</option>
                                     <option v-for="month in monthOptions" :key="month.value" :value="month.value">
@@ -178,7 +178,7 @@
                                 
                                 <select 
                                     v-model="selectedYear"
-                                    class="px-1 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs sm:text-sm w-full"
+                                    class="px-1 sm:px-3 py-1 sm:py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs sm:text-sm w-full"
                                 >
                                     <option value="">Año</option>
                                     <option v-for="year in yearOptions" :key="year.value" :value="year.value">
@@ -257,18 +257,30 @@
                 
                 <!-- Campo Por qué medio nos encontraste -->
                 <div>
-                    <label class="block text-gray-600 mb-1" for="medioEncontrado">Por qué medio nos encontraste:</label>
+                    <label class="block text-gray-600 mb-1" for="no_como_entero">Por qué medio nos encontraste:</label>
                     <USelect 
-                        id="medioEncontrado"
-                        v-model="registerData.medioEncontrado"
+                        id="no_como_entero"
+                        v-model="registerData.no_como_entero"
                         :items="medioEncontradoOptions"
                         class="w-full"
-                        :class="{ 'border-red-500': fieldErrors.medioEncontrado }"
+                        :class="{ 'border-red-500': fieldErrors.no_como_entero }"
                         placeholder="Selecciona una opción"
                         @blur="validateMedioEncontrado"
-                        @change="fieldErrors.medioEncontrado = ''"
+                        @change="fieldErrors.no_como_entero = ''"
                     />
-                    <p v-if="fieldErrors.medioEncontrado" class="text-red-500 text-xs mt-1">{{ fieldErrors.medioEncontrado }}</p>
+                    <!-- Si el usuario elige 'Otros', mostrar campo para especificar -->
+                    <div v-if="registerData.no_como_entero == 6" class="mt-2">
+                        <UInput
+                            v-model="registerData.no_otros_como_entero_empresa"
+                            placeholder="Especifica cómo nos encontraste"
+                            class="w-full"
+                            :class="{ 'border-red-500': fieldErrors.no_otros_como_entero_empresa }"
+                            @blur="validateMedioEncontrado"
+                            @input="fieldErrors.no_otros_como_entero_empresa = ''"
+                        />
+                        <p v-if="fieldErrors.no_otros_como_entero_empresa" class="text-red-500 text-xs mt-1">{{ fieldErrors.no_otros_como_entero_empresa }}</p>
+                    </div>
+                    <p v-if="fieldErrors.no_como_entero" class="text-red-500 text-xs mt-1">{{ fieldErrors.no_como_entero }}</p>
                 </div>
                 
                 <!--Form Field password-->
@@ -411,7 +423,8 @@ const registerData = ref({
     repeatPassword: '',
     dni: '',
     fechaNacimiento: '',
-    medioEncontrado: '',
+    no_como_entero: null,
+    no_otros_como_entero_empresa: '',
     departamento: null,
     provincia: null,
     distrito: null
@@ -426,7 +439,8 @@ const fieldErrors = ref({
     repeatPassword: '',
     dni: '',
     fechaNacimiento: '',
-    medioEncontrado: '',
+    no_como_entero: '',
+    no_otros_como_entero_empresa: '',
     departamento: '',
     provincia: '',
     distrito: ''
@@ -491,13 +505,14 @@ const formattedDate = computed(() => {
 const { showError, showSuccess } = useModal()
 
 // Opciones para el campo "Por qué medio nos encontraste"
+// Usamos IDs numéricos en `value` para que el backend reciba un entero.
 const medioEncontradoOptions = [
-    { label: 'Facebook', value: 'facebook' },
-    { label: 'Instagram', value: 'instagram' },
-    { label: 'TikTok', value: 'tiktok' },
-    { label: 'Youtube', value: 'youtube' },
-    { label: 'Google', value: 'google' },
-    { label: 'Recomendación', value: 'recomendacion' }
+    { label: 'Tiktok', value: 1 },
+    { label: 'Facebook', value: 2 },
+    { label: 'Instagram', value: 3 },
+    { label: 'Youtube', value: 4 },
+    { label: 'Familiares/Amigos', value: 5 },
+    { label: 'Otros', value: 6 }
 ]
 
 // Agrega esta función para mostrar advertencias
@@ -708,7 +723,10 @@ async function handleRegister() {
                 repeatPassword: registerData.value.repeatPassword,
                 dni: registerData.value.dni,
                 fechaNacimiento: registerData.value.fechaNacimiento,
-                medioEncontrado: registerData.value.medioEncontrado,
+                // Enviar las claves que el backend espera. `medioEncontrado` se mantiene
+                // para cumplir con la interfaz del método `register()`.
+                no_como_entero: registerData.value.no_como_entero || null,
+                no_otros_como_entero_empresa: registerData.value.no_otros_como_entero_empresa || null,
                 departamento: parseInt(registerData.value.departamento) || 1, // Usar 1 como default
                 provincia: parseInt(registerData.value.provincia) || 1, // Usar 1 como default
                 distrito: parseInt(registerData.value.distrito) || 1 // Usar 1 como default
@@ -754,7 +772,8 @@ function closeRegister() {
         repeatPassword: '', 
         dni: '', 
         fechaNacimiento: '', 
-        medioEncontrado: '',
+        no_como_entero: null,
+        no_otros_como_entero_empresa: '',
         departamento: null,
         provincia: null,
         distrito: null
@@ -767,7 +786,8 @@ function closeRegister() {
         repeatPassword: '', 
         dni: '', 
         fechaNacimiento: '', 
-        medioEncontrado: '',
+        no_como_entero: '',
+        no_otros_como_entero_empresa: '',
         departamento: '',
         provincia: '',
         distrito: ''
@@ -810,11 +830,22 @@ function validateFechaNacimiento() {
 }
 
 const validateMedioEncontrado = () => {
-    if (!registerData.value.medioEncontrado) {
-        fieldErrors.value.medioEncontrado = 'Por favor selecciona cómo nos encontraste'
+    // Debe seleccionar una opción
+    if (!registerData.value.no_como_entero) {
+        fieldErrors.value.no_como_entero = 'Por favor selecciona cómo nos encontraste'
         return false
     }
-    fieldErrors.value.medioEncontrado = ''
+
+    // Si el usuario seleccionó "Otros" (id = 6), debe especificar el medio
+    if (Number(registerData.value.no_como_entero) === 6) {
+        if (!registerData.value.no_otros_como_entero_empresa || !registerData.value.no_otros_como_entero_empresa.trim()) {
+            fieldErrors.value.no_otros_como_entero_empresa = 'Por favor especifica cómo nos encontraste'
+            return false
+        }
+        fieldErrors.value.no_otros_como_entero_empresa = ''
+    }
+
+    fieldErrors.value.no_como_entero = ''
     return true
 }
 

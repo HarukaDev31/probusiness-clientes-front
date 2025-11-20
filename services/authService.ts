@@ -25,6 +25,8 @@ export interface AuthUser {
   goals?: string
   empresa?: string
   fechaNacimiento?: string
+  no_como_entero?: number | null
+  no_otros_como_entero_empresa?: number | null
   raw?: any
 }
 
@@ -296,7 +298,8 @@ class AuthService {
         repeatPassword: credentials.repeatPassword,
         dni: credentials.dni,
         fechaNacimiento: credentials.fechaNacimiento,
-        medioEncontrado: credentials.medioEncontrado,
+        no_como_entero: credentials.no_como_entero,
+        no_otros_como_entero_empresa: credentials.no_otros_como_entero_empresa,
         departamento_id: credentials.departamento,
         provincia_id: credentials.provincia,
         distrito_id: credentials.distrito
