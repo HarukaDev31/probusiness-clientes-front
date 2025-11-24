@@ -26,7 +26,6 @@ export class ProfileService extends BaseService {
         try {
             const formData = new FormData()
             
-            console.log('🔍 Debug SERVICE - profileData recibido:', profileData);
             
             // Agregar campos del perfil con los nombres EXACTOS que espera el backend
             if (profileData.fullName !== undefined) formData.append('full_name', profileData.fullName)

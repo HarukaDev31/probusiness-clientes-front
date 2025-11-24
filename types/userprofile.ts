@@ -2,27 +2,26 @@ import type { AuthMenu } from "~/services/authService";
 
 export interface UserProfile{
     id:number,
-    name:string,
-    fullName?:string,  // Agregar fullName como opcional
+    fullName?:string,
+    name?:string, // Alias para fullName
     photoUrl:string,
     email:string,
     dni:string,
     fechaNacimiento:string,
-    birth_date?:string,  // Agregar birth_date como opcional
-    country:string,
-    idcity:number,
-    city?:string,
-    department?:number,
-    idprovince?:number,
-    province?:string,
-    district?:number,
+    birth_date?:string, // Alias para fechaNacimiento
+    idCountry:number,
+    idDepartment:number,
+    idProvince:number,
+    idDistrict:number,
     phone?:string,
-    business?:UserBusiness,   
-    importedAmount:number,
-    importedContainers:number,
+    soldCBM:number,
+    embarquedCBM:number,
     goals?:string,
-    cbm?:number, // Campo CBM que viene del backend
-}
+    business?:UserBusiness,
+    importedAmount?:number,
+    importedContainers?:number,
+    cbm?:number,
+} 
 export interface UserBusiness{
     id:number,
     name:string,

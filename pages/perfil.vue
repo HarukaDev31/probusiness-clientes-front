@@ -17,7 +17,6 @@ import UserProfileComponent from '@/components/profile/UserProfileComponent.vue'
 import { useProfile } from '@/composables/clientes/commons/profile';
 const { profile, loading, error, getProfile } = useProfile();
 const isLoading = ref(true);
-let userProfile = ref({} as UserProfile);
 
 // Función para manejar la actualización del perfil
 const handleProfileUpdate = async () => {
@@ -42,31 +41,7 @@ onMounted(async () => {
     console.error('Error al cargar el perfil:', error);
     // isLoading.value = false;
   }
-  setTimeout(() => {
-    userProfile.value = {
-      id: 1,
-      fullName: "Juan Pérez",
-      photoUrl: "https://static-00.iconduck.com/assets.00/profile-icon-2048x2048-yj5zf8da.png",
-      email: "juan.perez@example.com",
-      documentNumber: "12345678",
-      age: 30,
-      country: "Perú",
-      city: "Lima",
-      phone: "+51 987654321",
-      business: {
-        id: 101,
-        name: "Empresa Ejemplo S.A.",
-        ruc: "20123456781",
-        comercialCapacity: "Grande Contribuyente",
-        rubric: "Comercio Internacional",
-        socialAddress: "Av. Ejemplo 123, Lima"
-      },
-      importedAmount: 50000,
-      importedContainers: 12,
-      goals: "Expandir el negocio a 3 países más en 2024"
-    };
-    isLoading.value = false;
-  }, 1000);
+
 
 });
 </script>

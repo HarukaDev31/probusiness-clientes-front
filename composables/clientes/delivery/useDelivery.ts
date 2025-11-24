@@ -72,6 +72,18 @@ export const useDelivery = () => {
             loadingHorarios.value = false
         }
     }
+    const loadingFormulario = ref(false)
+    const getFormularioLimaByCotizacion = async (cotizacionUuid: string): Promise<any> => {
+        loadingFormulario.value = true
+        try {
+            const response = await DeliveryService.getFormularioLimaByCotizacion(cotizacionUuid)
+            return response
+        } catch (error) {
+            throw error
+        } finally {
+            loadingFormulario.value = false
+        }
+    }
     return {
         getDeliveryByConsolidadoId,
         clientes,
@@ -83,6 +95,8 @@ export const useDelivery = () => {
         saveDeliveryProvincia,
         getHorariosDisponibles,
         horarios,
-        saveDeliveryLima
+        saveDeliveryLima,
+        getFormularioLimaByCotizacion,
+        loadingFormulario
     }
 }

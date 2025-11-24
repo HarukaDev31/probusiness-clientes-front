@@ -66,4 +66,13 @@ export class DeliveryService extends BaseService {
             throw error
         }
     }
+    static async getFormularioLimaByCotizacion(cotizacionUuid: string): Promise<any> {
+        try {
+            const response = await this.apiCall<any>(`${this.baseUrl}/formulario-lima/${cotizacionUuid}`)
+            return response
+        } catch (error) {
+            console.error('Error al obtener el formulario de Lima por cotización:', error)
+            throw error
+        }
+    }
 }

@@ -128,8 +128,13 @@
             </div>
 
             <UFormField label="Selecciona el nombre del importador:" required>
-              <USelectMenu v-model="formData.importador" :items="clientes" placeholder="Selecciona el importador"
-                :disabled="loading" class="w-full" />
+              <USelectMenu 
+                v-model="formData.importador" 
+                :items="clientes" 
+                placeholder="Selecciona el importador"
+                :disabled="loading" 
+                class="w-full"
+                @update:model-value="handleImportadorChange" />
             </UFormField>
 
             <UFormField label="Escoge el tipo de comprobante:" required>
@@ -234,10 +239,35 @@
           <!-- Paso 4: Selección de fecha -->
           <div v-if="currentStep === 4" class="space-y-6 w-full">
             <div class="text-center mb-6">
-             
-              
+              <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
+                Selección de fecha y horario
+              </h2>
             </div>
-            <AppointmentScheduler :horarios="horarios" @date-selected="handleDateSelected" />
+            
+            <!-- Mostrar mensaje si no hay horarios disponibles -->
+            <div v-if="!loadingHorarios && horarios.length === 0" class="bg-yellow-50 dark:bg-yellow-800 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4 mb-6">
+              <div class="flex items-start">
+                <div class="flex-shrink-0">
+                  <UIcon name="i-heroicons-information-circle" class="h-5 w-5 text-yellow-600" />
+                </div>
+                <div class="ml-3">
+                  <p class="text-sm text-yellow-800 dark:text-yellow-100">
+                    <strong>No hay horarios disponibles en este momento.</strong> Puedes continuar y completar el formulario sin seleccionar una fecha. Nos pondremos en contacto contigo para coordinar la entrega.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Mostrar spinner mientras se cargan los horarios -->
+            <div v-else-if="loadingHorarios" class="flex justify-center items-center py-8">
+              <div class="text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
+                <p class="text-gray-600 dark:text-gray-300">Cargando horarios disponibles...</p>
+              </div>
+            </div>
+            
+            <!-- Mostrar calendario si hay horarios disponibles -->
+            <AppointmentScheduler v-else :horarios="horarios" @date-selected="handleDateSelected" />
           </div>
 
           <!-- Navigation Buttons -->
@@ -276,7 +306,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, watch, onMounted } from 'vue'
 import { useModal } from '~/composables/commons/useModal'
 import AppointmentScheduler from '~/components/commons/AppointmentScheduler.vue'
 import SuccessReservationModal from '~/components/commons/SuccessModal.vue'
@@ -288,7 +318,7 @@ import { useFormPersistence } from '~/composables/commons/useFormPersistence'
 import { useRoute } from 'vue-router'
 import { useUserRole } from '~/composables/auth/useUserRole'
 const { showSuccess, showError } = useModal()
-const { getDeliveryByConsolidadoId, clientes, carga, getDeliveryAgency, agencies, saveDeliveryProvincia, saveDeliveryLima, getHorariosDisponibles, horarios } = useDelivery()
+const { getDeliveryByConsolidadoId, clientes, carga, getDeliveryAgency, agencies, saveDeliveryProvincia, saveDeliveryLima, getHorariosDisponibles, horarios, loadingHorarios, getFormularioLimaByCotizacion, loadingFormulario } = useDelivery()
 const { departamentos, provincias, distritos, getDepartamentos, getProvincias, getDistritos, loadingDepartamentos, loadingProvincias, loadingDistritos } = useLocation()
 const { withSpinner } = useSpinner()
 const {
@@ -381,6 +411,11 @@ const canProceedToNextStep = computed(() => {
     case 3:
       return true // Este paso es opcional
     case 4:
+      // Si no hay horarios disponibles, permitir continuar sin seleccionar fecha/horario
+      if (horarios.value.length === 0) {
+        return true
+      }
+      // Si hay horarios disponibles, requerir selección
       return formData.fechaEntrega !== null && formData.horarioSeleccionado !== null
     default:
       return false
@@ -439,9 +474,19 @@ const reservationSummary = computed(() => {
 })
 
 // Navegación entre pasos
-const nextStep = () => {
+const nextStep = async () => {
   console.log(canProceedToNextStep.value, "waos")
   if (currentStep.value < 4 && canProceedToNextStep.value) {
+    // Si estamos en el paso 2 y vamos al paso 3, cargar horarios
+    if (currentStep.value === 2) {
+      try {
+        await getHorariosDisponibles(Number(consolidadoId))
+      } catch (error) {
+        console.error('Error al cargar horarios:', error)
+        // Continuar aunque haya error, ya que el paso 3 es opcional
+      }
+    }
+    
     currentStep.value++
     // Asegurar que el modal esté cerrado al cambiar de paso
     showSuccessModal.value = false
@@ -516,6 +561,8 @@ const canNavigateToStep = (stepNumber: number) => {
       ? (formData.clienteRuc && formData.clienteRazonSocial && formData.clienteCorreo)
       : false
       
+    // Permitir ir al paso 4 si los pasos anteriores están completos
+    // El paso 4 puede completarse sin horarios disponibles
     return step1Valid && step2Valid
   }
   
@@ -545,13 +592,25 @@ const finalizarReserva = async () => {
   try {
     await withSpinner(async () => {
       try {
+        // Manejar distritoDestino que puede ser string o objeto con value
+        let distritoDestinoValue = ''
+        const distritoDestino: any = formData.distritoDestino
+        if (distritoDestino) {
+          if (typeof distritoDestino === 'object' && distritoDestino !== null && 'value' in distritoDestino) {
+            distritoDestinoValue = String(distritoDestino.value || '')
+          } else if (typeof distritoDestino === 'string') {
+            distritoDestinoValue = distritoDestino
+          }
+        }
+        
         const data = {
           ...formData,
           importador: formData.importador.value,
           tipoComprobante: formData.tipoComprobante.value,
-          fechaEntrega: formData.fechaEntrega,
-          horarioSeleccionado: formData.horarioSeleccionado,
-          distritoDestino: formData.distritoDestino?.value || ''
+          // Solo incluir fecha y horario si están seleccionados
+          fechaEntrega: formData.fechaEntrega || null,
+          horarioSeleccionado: formData.horarioSeleccionado || null,
+          distritoDestino: distritoDestinoValue
         }
         
         const response = await saveDeliveryLima(data)
@@ -634,19 +693,143 @@ watch(() => formData.tipoComprobante, (newValue) => {
     
   }
 })
+
+// Función para manejar el cambio de importador
+const handleImportadorChange = async (newValue: any) => {
+  // Solo cargar si se selecciona un importador válido con value
+  if (newValue && newValue.value) {
+    try {
+      console.log('Cargando formulario para importador:', newValue.value)
+      const formularioData = await getFormularioLimaByCotizacion(newValue.value)
+      
+      if (formularioData && formularioData.success && formularioData.data && formularioData.data.formData) {
+        const savedFormData = formularioData.data.formData
+        
+        console.log('Formulario encontrado, restaurando datos...', savedFormData)
+        
+        // Restaurar todos los datos del formulario guardado
+        if (savedFormData.nombreCompleto) {
+          formData.nombreCompleto = savedFormData.nombreCompleto
+        }
+        if (savedFormData.dni) {
+          formData.dni = savedFormData.dni
+        }
+        if (savedFormData.tiposProductos) {
+          formData.tiposProductos = savedFormData.tiposProductos
+        }
+        
+        // Actualizar tipo de comprobante si viene del formulario guardado
+        if (savedFormData.tipoComprobante) {
+          formData.tipoComprobante = savedFormData.tipoComprobante
+        }
+        
+        // Datos del cliente (Paso 2)
+        if (savedFormData.clienteDni) {
+          formData.clienteDni = savedFormData.clienteDni
+        }
+        if (savedFormData.clienteNombre) {
+          formData.clienteNombre = savedFormData.clienteNombre
+        }
+        if (savedFormData.clienteCorreo) {
+          formData.clienteCorreo = savedFormData.clienteCorreo
+        }
+        if (savedFormData.clienteRuc) {
+          formData.clienteRuc = savedFormData.clienteRuc
+        }
+        if (savedFormData.clienteRazonSocial) {
+          formData.clienteRazonSocial = savedFormData.clienteRazonSocial
+        }
+        
+        // Datos del chofer (Paso 3)
+        if (savedFormData.choferNombre) {
+          formData.choferNombre = savedFormData.choferNombre
+        }
+        if (savedFormData.choferDni) {
+          formData.choferDni = savedFormData.choferDni
+        }
+        if (savedFormData.choferLicencia) {
+          formData.choferLicencia = savedFormData.choferLicencia
+        }
+        if (savedFormData.choferPlaca) {
+          formData.choferPlaca = savedFormData.choferPlaca
+        }
+        if (savedFormData.direccionDestino) {
+          formData.direccionDestino = savedFormData.direccionDestino
+        }
+        if (savedFormData.distritoDestino) {
+          // Manejar distritoDestino que puede ser string o objeto
+          const distrito = savedFormData.distritoDestino
+          if (typeof distrito === 'string') {
+            formData.distritoDestino = distrito
+          } else if (typeof distrito === 'object' && distrito !== null) {
+            formData.distritoDestino = distrito
+          }
+        }
+        
+        // NO incluir fechaEntrega ni horarioSeleccionado (se mantienen como null)
+        formData.fechaEntrega = null
+        formData.horarioSeleccionado = null
+        
+        // Restaurar el paso donde se quedó (normalmente paso 4 sin horario)
+        if (formularioData.data.currentStep) {
+          currentStep.value = formularioData.data.currentStep
+          
+          // Si está en el paso 4, cargar horarios disponibles
+          if (formularioData.data.currentStep === 4) {
+            try {
+              await getHorariosDisponibles(Number(consolidadoId))
+            } catch (error) {
+              console.error('Error al cargar horarios:', error)
+            }
+          }
+        }
+        
+        // Guardar estado después de cargar
+        saveFormState(formData, currentStep.value)
+        
+        console.log('Formulario guardado cargado exitosamente', {
+          paso: currentStep.value,
+          tieneHorario: !!formData.horarioSeleccionado
+        })
+      } else {
+        console.log('No se encontró formulario guardado para este importador')
+      }
+    } catch (error: any) {
+      // Si el error es 404 (no hay formulario), es normal, no hacer nada
+      if (error?.response?.status !== 404) {
+        console.error('Error al cargar formulario guardado:', error)
+      } else {
+        console.log('No hay formulario guardado (404), continuando normalmente')
+      }
+      // Si no hay formulario guardado, continuar normalmente con el formulario vacío
+    }
+  }
+}
+
+// Watcher como respaldo (por si acaso)
+watch(() => formData.importador?.value, async (newValue, oldValue) => {
+  // Solo ejecutar si el valor realmente cambió
+  if (newValue && newValue !== oldValue) {
+    console.log('Watcher detectó cambio en importador.value:', newValue)
+    // La función handleImportadorChange ya maneja esto, pero lo dejamos como respaldo
+  }
+}, { immediate: false })
 onMounted(async () => {
   // Asegurar que el modal esté cerrado al montar el componente
   showSuccessModal.value = false
   
   // Cargar datos del servidor
   await getDeliveryByConsolidadoId(Number(consolidadoId))
-  await getHorariosDisponibles(Number(consolidadoId))
+  
+  // No cargar horarios aquí, se cargarán cuando se entre al paso 3
+  
   if(formData.tipoComprobante.value === 'BOLETA'){
     formData.clienteDni = userData.value?.dni || ''
     formData.clienteNombre = userData.value?.name || ''
   }
   formData.clienteCorreo = userData.value?.email || ''
-  //// Intentar cargar estado guardado
+  
+  // Intentar cargar estado guardado
   const savedState = loadFormState()
   if (savedState) {
     console.log('Estado guardado encontrado:', savedState)
@@ -654,8 +837,30 @@ onMounted(async () => {
     Object.assign(formData, savedState.formData)
     // Restaurar paso actual
     currentStep.value = savedState.currentStep
+    
+    // Si el paso guardado es 3 o 4, cargar horarios
+    if (savedState.currentStep >= 3) {
+      try {
+        await getHorariosDisponibles(Number(consolidadoId))
+      } catch (error) {
+        console.error('Error al cargar horarios:', error)
+      }
+    }
   }
+  
   await getDistritos('1')
+})
+
+// Watcher para cargar horarios cuando se entra al paso 3
+watch(() => currentStep.value, async (newStep) => {
+  if (newStep === 3 && horarios.value.length === 0 && !loadingHorarios.value) {
+    try {
+      await getHorariosDisponibles(Number(consolidadoId))
+    } catch (error) {
+      console.error('Error al cargar horarios:', error)
+      // Continuar aunque haya error, ya que el paso 3 es opcional
+    }
+  }
 })
 </script>
 

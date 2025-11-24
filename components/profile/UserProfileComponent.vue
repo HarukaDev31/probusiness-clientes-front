@@ -60,21 +60,11 @@
                             <strong class="w-full sm:w-30 font-weight: 300;">País:</strong>
                             <span v-if="!isEditingProfile" class="w-full sm:w-40 word-break break-words">{{
                                 (() => {
-                                    const userProfileAny = userProfile as any;
-                                    
-                                    // Priorizar valor directo si es string (nombre del país)
-                                    if (userProfileAny.country && typeof userProfileAny.country === 'string' && isNaN(parseInt(userProfileAny.country))) {
-                                        return userProfileAny.country;
+                                    // Usar idCountry directamente del tipo UserProfile
+                                    if (userProfile.idCountry) {
+                                        const foundCountry = paises.find(p => p.value == userProfile.idCountry);
+                                        return foundCountry ? foundCountry.label : `ID: ${userProfile.idCountry}`;
                                     }
-                                    
-                                    // Buscar por ID en múltiples fuentes: id_country, country, etc.
-                                    const countryId = userProfileAny.id_country || userProfileAny.country;
-                                    
-                                    if (countryId && !isNaN(parseInt(countryId))) {
-                                        const foundCountry = paises.find(p => p.value == parseInt(countryId));
-                                        return foundCountry ? foundCountry.label : `ID: ${countryId}`;
-                                    }
-                                    
                                     return '-';
                                 })()
                             }}</span>
@@ -86,21 +76,11 @@
                             <strong class="w-full sm:w-30 font-weight: 300;">Departamento:</strong>
                             <span v-if="!isEditingProfile" class="w-full sm:w-40 word-break break-words">{{
                                 (() => {
-                                    const userProfileAny = userProfile as any;
-                                    
-                                    // Priorizar valor directo si es string (nombre del departamento)
-                                    if (userProfileAny.department && typeof userProfileAny.department === 'string' && isNaN(parseInt(userProfileAny.department))) {
-                                        return userProfileAny.department;
+                                    // Usar idDepartment directamente del tipo UserProfile
+                                    if (userProfile.idDepartment) {
+                                        const foundDept = departamentos.find(d => d.value == userProfile.idDepartment);
+                                        return foundDept ? foundDept.label : `ID: ${userProfile.idDepartment}`;
                                     }
-                                    
-                                    // Buscar por ID en múltiples fuentes: id_department, department, etc.
-                                    const deptId = userProfileAny.id_department || userProfileAny.department;
-                                    
-                                    if (deptId && !isNaN(parseInt(deptId))) {
-                                        const foundDept = departamentos.find(d => d.value == parseInt(deptId));
-                                        return foundDept ? foundDept.label : `ID: ${deptId}`;
-                                    }
-                                    
                                     return '-';
                                 })()
                             }}</span>
@@ -113,19 +93,10 @@
 
                             <span v-if="!isEditingProfile" class="w-full sm:w-40 word-break break-words">{{
                                 (() => {
-                                    const userProfileAny = userProfile as any;
-                                    
-                                    // Priorizar province si es un string válido
-                                    if (userProfile.province && typeof userProfile.province === 'string' && isNaN(parseInt(userProfile.province))) {
-                                        return userProfile.province;
-                                    }
-                                    
-                                    // Buscar por ID en múltiples fuentes: city, province, id_city, etc.
-                                    const cityId = userProfileAny.city || userProfileAny.province || userProfileAny.id_city;
-                                    
-                                    if (cityId) {
-                                        const foundProvince = provincias.find(p => p.value == cityId);
-                                        return foundProvince ? foundProvince.label : `Cargando...`;
+                                    // Usar idProvince directamente del tipo UserProfile
+                                    if (userProfile.idProvince) {
+                                        const foundProvince = provincias.find(p => p.value == userProfile.idProvince);
+                                        return foundProvince ? foundProvince.label : `ID: ${userProfile.idProvince}`;
                                     }
                                     return '-';
                                 })()
@@ -138,21 +109,11 @@
                             <strong class="w-full sm:w-30 font-weight: 300;">Distrito:</strong>
                             <span v-if="!isEditingProfile" class="w-full sm:w-40 word-break break-words">{{
                                 (() => {
-                                    const userProfileAny = userProfile as any;
-                                    
-                                    // Priorizar valor directo si es string (nombre del distrito)
-                                    if (userProfileAny.district && typeof userProfileAny.district === 'string' && isNaN(parseInt(userProfileAny.district))) {
-                                        return userProfileAny.district;
+                                    // Usar idDistrict directamente del tipo UserProfile
+                                    if (userProfile.idDistrict) {
+                                        const foundDistrict = distritos.find(d => d.value == userProfile.idDistrict);
+                                        return foundDistrict ? foundDistrict.label : `ID: ${userProfile.idDistrict}`;
                                     }
-                                    
-                                    // Buscar por ID en múltiples fuentes: id_district, district, etc.
-                                    const districtId = userProfileAny.id_district || userProfileAny.district;
-                                    
-                                    if (districtId && !isNaN(parseInt(districtId))) {
-                                        const foundDistrict = distritos.find(d => d.value == parseInt(districtId));
-                                        return foundDistrict ? foundDistrict.label : `ID: ${districtId}`;
-                                    }
-                                    
                                     return '-';
                                 })()
                             }}</span>
@@ -204,18 +165,7 @@
                     body: 'w-full sm:p-4'
                 }"
             >
-                <div class="flex flex-row gap-2 items-center justify-between mb-4">
-                    <div class="flex flex-row gap-1">
-                        <h3>Mi empresa</h3>
-                        <svg width="20" height="20" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M13.5923 4.48047L8.32308 0.388161C7.83846 0.011238 7.15385 0.011238 6.66923 0.388161L1.40769 4.48047C0.507692 5.18047 0 6.22662 0 7.36508V12.0112C0 13.6035 1.29231 14.8959 2.88462 14.8959H12.1154C13.7077 14.8959 15 13.6035 15 12.0112V7.36508C15 6.22662 14.4846 5.18047 13.5923 4.48047ZM4.23077 10.2805H10.7692V11.4343H4.23077V10.2805ZM10.7692 9.12662H4.23077V8.16508C4.23077 8.05739 4.31538 7.97278 4.42308 7.97278H10.5769C10.6846 7.97278 10.7692 8.05739 10.7692 8.16508V9.12662ZM4.23077 12.5882H10.7692V13.742H4.23077V12.5882ZM13.8462 12.0112C13.8462 12.9651 13.0692 13.742 12.1154 13.742H11.9231V8.16508C11.9231 7.42662 11.3154 6.81893 10.5769 6.81893H4.42308C3.68462 6.81893 3.07692 7.42662 3.07692 8.16508V13.742H2.88462C1.93077 13.742 1.15385 12.9651 1.15385 12.0112V7.36508C1.15385 6.58816 1.50769 5.86508 2.11538 5.38816L7.37692 1.29585C7.37692 1.29585 7.45385 1.25739 7.49231 1.25739C7.53077 1.25739 7.57692 1.27278 7.60769 1.29585L12.8692 5.38816C13.4846 5.86508 13.8308 6.58816 13.8308 7.36508V12.0112H13.8462Z" fill="#272A30"/>
-                        </svg>
-
-                    </div>
-                    <UButton variant="ghost" @click="toggleEditBusiness"
-                        :icon="isEditingBusiness ? 'i-heroicons-x-mark' : 'i-heroicons-pencil'" class="h-8 w-8">
-                    </UButton>
-                </div>
+                
                 <div class="flex flex-col gap-4">
                     <p class="flex flex-row sm:flex-row place-content-start gap-1 sm:gap-0">
                         <strong class="w-full sm:w-48 font-weight: 300;">Empresa:</strong>
@@ -348,159 +298,86 @@ const businessForm = ref({
 // Inicializar datos
 onMounted(async () => {
     userProfile.value = props.userProfile;    
-    // Cargar datos de países, departamentos y provincias primero
-    await getPaises();
-    await getDepartamentos();
-    await getAllProvincias();
     
-    // Esperar un poco para que se carguen los datos
+    // Cargar países primero
+    await getPaises();
+    
+    // Si hay idCountry, ya está cargado, continuar con departamentos
+    if (userProfile.value.idCountry) {
+        // Cargar departamentos
+        await getDepartamentos();
+        
+        // Si hay idDepartment, cargar provincias de ese departamento
+        if (userProfile.value.idDepartment) {
+            await getProvincias(userProfile.value.idDepartment.toString());
+            
+            // Si hay idProvince, cargar distritos de esa provincia
+            if (userProfile.value.idProvince) {
+                await getDistritos(userProfile.value.idProvince.toString());
+            }
+        }
+    } else {
+        // Si no hay país, cargar todos los departamentos y provincias para mostrar
+        await getDepartamentos();
+        await getAllProvincias();
+    }
+    
+    // Esperar un tick para que se carguen los datos
     await nextTick();
     
-    // Si hay una provincia seleccionada, cargar sus distritos
-    const userProfileAny = userProfile.value as any;
-    
-    // Buscar provincia ID - necesitamos el ID numérico, no el nombre
-    let provinciaId = null;
-    
-    // Primero intentar obtener el ID directo
-    if (userProfileAny.id_city || userProfileAny.idcity) {
-        provinciaId = userProfileAny.id_city || userProfileAny.idcity;
-    }
-    // Si no hay ID directo pero hay un nombre de provincia, buscar su ID
-    else if (userProfileAny.province && typeof userProfileAny.province === 'string') {
-        const foundProvince = provincias.value.find(p => 
-            p.label && p.label.toLowerCase() === userProfileAny.province.toLowerCase()
-        );
-        if (foundProvince) {
-            provinciaId = foundProvince.value;
-        }
-    }
-    // Si hay un valor city que es numérico
-    else if (userProfileAny.city && !isNaN(parseInt(userProfileAny.city))) {
-        provinciaId = parseInt(userProfileAny.city);
-    }
-                       
-    if (provinciaId) {
-        try {
-            console.log('🔍 Debug MOUNT - Cargando distritos para provincia ID:', provinciaId);
-            await getDistritos(provinciaId.toString());
-        } catch (error) {
-            console.error('🔍 Debug MOUNT - Error cargando distritos:', error);
-        }
-    }
-    
-    // Luego inicializar los formularios después de que los datos estén cargados
+    // Inicializar los formularios después de que los datos estén cargados
     await initializeForms();
 });
 
-const initializeForms = () => {
-    console.log('🔧 Inicializando formularios con userProfile props:', userProfile.value);
-    console.log('🔧 userProfile.value.name:', userProfile.value.name);
-    console.log('🔧 userProfile.value.fullName:', (userProfile.value as any).fullName);
-    console.log('🔧 userProfile.value.fechaNacimiento:', userProfile.value.fechaNacimiento);
-    console.log('🔧 userProfile.value.birth_date:', (userProfile.value as any).birth_date);
-    console.log('🔧 userProfile.value.dni:', userProfile.value.dni);
+const initializeForms = async () => {
+    console.log('🔧 Inicializando formularios con userProfile:', userProfile.value);
     
-    // Usar únicamente los datos de userProfile (props)
-    const userProfileAny = userProfile.value as any;
+    // Usar directamente los campos del tipo UserProfile
+    const profile = userProfile.value;
     
-    // Convertir country a número buscando en la lista de países
-    let countryAsNumber = null;
-    if (userProfileAny.country) {
-        if (typeof userProfileAny.country === 'string' && isNaN(parseInt(userProfileAny.country))) {
-            // Buscar por nombre del país
-            const foundCountry = paises.value.find(p => 
-                p.label.toLowerCase() === userProfileAny.country.toLowerCase()
-            );
-            countryAsNumber = foundCountry ? foundCountry.value : null;
-        } else {
-            countryAsNumber = parseInt(userProfileAny.country) || null;
-        }
+    // Usar idCountry directamente del tipo
+    let countryAsNumber = profile.idCountry || null;
+    
+    // Usar idDepartment directamente del tipo
+    let departmentAsNumber = profile.idDepartment || null;
+    
+    // Si hay idDepartment pero no se han cargado las provincias, cargarlas
+    if (departmentAsNumber && provincias.value.length === 0) {
+        await getProvincias(departmentAsNumber.toString());
+        await nextTick();
     }
     
-    // Convertir department a número buscando en la lista de departamentos
-    let departmentAsNumber = null;
-    // Buscar en múltiples fuentes: id_department, department, etc.
-    const deptId = userProfileAny.id_department || userProfileAny.department;
+    // Usar idProvince directamente del tipo
+    let cityAsNumber = profile.idProvince || null;
     
-    console.log('🔧 Department ID encontrado:', deptId, 'de userProfile:', { 
-        userProfileDept: userProfileAny.department,
-        userProfileIdDept: userProfileAny.id_department
-    });
-    
-    if (deptId) {
-        if (typeof deptId === 'string' && isNaN(parseInt(deptId))) {
-            // Buscar por nombre del departamento
-            const foundDepartment = departamentos.value.find(d => 
-                d.label.toLowerCase() === deptId.toLowerCase()
-            );
-            departmentAsNumber = foundDepartment ? foundDepartment.value : null;
-            console.log('🔧 Department buscado por nombre:', deptId, 'encontrado:', foundDepartment);
-        } else {
-            departmentAsNumber = parseInt(deptId) || null;
-            console.log('🔧 Department parseado como número:', departmentAsNumber);
-        }
+    // Si hay idProvince pero no se han cargado los distritos, cargarlos
+    if (cityAsNumber && distritos.value.length === 0) {
+        await getDistritos(cityAsNumber.toString());
+        await nextTick();
     }
     
-    // Priorizar province sobre city y buscar el ID correspondiente
-    let cityAsNumber = null;
-    // Buscar por ID en múltiples fuentes: city, province, id_city, etc.
-    const cityId = userProfileAny.city || userProfileAny.province || userProfileAny.id_city;
-    
-    if (cityId) {
-        if (typeof cityId === 'string' && isNaN(parseInt(cityId))) {
-            const foundProvince = provincias.value.find(p => 
-                p.label.toLowerCase() === cityId.toLowerCase()
-            );
-            cityAsNumber = foundProvince ? foundProvince.value : null;
-        } else {
-            cityAsNumber = parseInt(cityId) || null;
-        }
-    }
-    
-    // Convertir district a número buscando en la lista de distritos
-    let districtAsNumber = null;
-    // Buscar en múltiples fuentes: id_district, district, etc.
-    const districtId = userProfileAny.id_district || userProfileAny.district;
-    
-    console.log('🔧 District ID encontrado:', districtId, 'de userProfile:', { 
-        userProfileDistrict: userProfileAny.district,
-        userProfileIdDistrict: userProfileAny.id_district
-    });
-    
-    if (districtId) {
-        if (typeof districtId === 'string' && isNaN(parseInt(districtId))) {
-            // Buscar por nombre del distrito
-            const foundDistrict = distritos.value.find(d => 
-                d.label.toLowerCase() === districtId.toLowerCase()
-            );
-            districtAsNumber = foundDistrict ? foundDistrict.value : null;
-            console.log('🔧 District buscado por nombre:', districtId, 'encontrado:', foundDistrict);
-        } else {
-            districtAsNumber = parseInt(districtId) || null;
-            console.log('🔧 District parseado como número:', districtAsNumber);
-        }
-    } 
+    // Usar idDistrict directamente del tipo
+    let districtAsNumber = profile.idDistrict || null;
 
-    // Inicializar formulario de perfil usando únicamente userProfile
+    // Inicializar formulario de perfil usando los campos del tipo UserProfile
     profileForm.value = {
-        fullName: userProfileAny.fullName || userProfile.value.fullName || userProfileAny.name || userProfile.value.name || '',
-        email: userProfileAny.email || userProfile.value.email || '',
-        documentNumber: userProfileAny.dni || userProfileAny.documentNumber || userProfile.value.dni || '',
-        fechaNacimiento: formatDateForInput(userProfileAny.birth_date || userProfileAny.fechaNacimiento || userProfile.value.birth_date || userProfile.value.fechaNacimiento) || '',
+        fullName: profile.fullName || '',
+        email: profile.email || '',
+        documentNumber: profile.dni || '',
+        fechaNacimiento: formatDateForInput(profile.fechaNacimiento) || '',
         country: countryAsNumber,
         department: departmentAsNumber,
         city: cityAsNumber,
         district: districtAsNumber,
-        phone: userProfileAny.phone || userProfile.value.phone || '',
-        goals: userProfileAny.goals || userProfile.value.goals || ''
+        phone: profile.phone || '',
+        goals: profile.goals || ''
     };
 
-    console.log('🔧 Formulario inicializado con valores:', {
+    console.log('🔧 Formulario inicializado con valores del tipo UserProfile:', {
+        country: countryAsNumber,
         department: departmentAsNumber,
         city: cityAsNumber,
-        district: districtAsNumber,
-        country: countryAsNumber
+        district: districtAsNumber
     });
 
     // Inicializar formulario de empresa
@@ -779,26 +656,47 @@ onUnmounted(() => {
 });
 
 // Watcher para reaccionar a cambios en las props del userProfile
-watch(() => props.userProfile, (newUserProfile) => {
+watch(() => props.userProfile, async (newUserProfile) => {
     if (newUserProfile) {
         console.log('🔄 UserProfile props changed, updating local data:', newUserProfile);
         userProfile.value = newUserProfile;
         // Forzar actualización del formKey para que el componente se re-renderice
         formKey.value++;
+        
+        // Cargar datos de ubicación si hay IDs
+        if (newUserProfile.idCountry) {
+            await getPaises();
+            if (newUserProfile.idDepartment) {
+                await getDepartamentos();
+                await getProvincias(newUserProfile.idDepartment.toString());
+                if (newUserProfile.idProvince) {
+                    await getDistritos(newUserProfile.idProvince.toString());
+                }
+            }
+        }
+        
         // Solo reinicializar formularios si no estamos editando
         if (!isEditingProfile.value && !isEditingBusiness.value && !isEditingGoals.value) {
-            nextTick(() => {
-                initializeForms();
-            });
+            await nextTick();
+            await initializeForms();
         }
     }
 }, { deep: true, immediate: true });
 
 // Watchers para reinicializar cuando se carguen los datos
-watch([paises, departamentos, provincias, distritos], ([newPaises, newDepartamentos, newProvincias, newDistritos]) => {
-    // Solo reinicializar si NO estamos en modo de edición
-    if (newPaises.length > 0 && newDepartamentos.length > 0 && newProvincias.length > 0 && !isEditingProfile.value) {
-        initializeForms();
+watch([paises, departamentos, provincias, distritos], async ([newPaises, newDepartamentos, newProvincias, newDistritos]) => {
+    // Solo reinicializar si NO estamos en modo de edición y hay datos cargados
+    if (newPaises.length > 0 && newDepartamentos.length > 0 && !isEditingProfile.value) {
+        // Si hay un idDepartment, esperar a que se carguen las provincias de ese departamento
+        if (userProfile.value.idDepartment && newProvincias.length === 0) {
+            await getProvincias(userProfile.value.idDepartment.toString());
+        }
+        // Si hay un idProvince, esperar a que se carguen los distritos de esa provincia
+        if (userProfile.value.idProvince && newDistritos.length === 0) {
+            await getDistritos(userProfile.value.idProvince.toString());
+        }
+        await nextTick();
+        await initializeForms();
     }
 }, { deep: true });
 
