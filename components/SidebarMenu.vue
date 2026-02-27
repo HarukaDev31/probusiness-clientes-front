@@ -38,13 +38,14 @@
         <template v-else>
           <template v-for="category in menuCategories" :key="category.id">
             <div class="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              {{ category.name }}
+              {{ category.name }} xd
             </div>
 
             <div class="space-y-1 px-1">
               <template v-for="item in category.modules" :key="item.id">
                 <!-- Item padre con hijos: izquierda = navegación/opcional toggle, derecha = chevron que controla expand -->
-                <div v-if="item.children && item.children.length" class="w-full">
+      
+                <div v-if="item.Hijos && item.Hijos.length" class="w-full">
                   <div class="flex items-center justify-between">
                     <!-- Left: clickable area (navega si tiene route, sino actúa como toggle) -->
                     <button type="button"

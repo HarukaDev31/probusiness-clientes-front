@@ -177,12 +177,14 @@ class AuthService {
 
         this.currentUser = user
         this.token = token
-        //if menu.show_father=0 then remove menu.Hijos
+        // Si show_father=0, quitar hijos solo cuando tiene ruta real (no #), para que los ítem con # desglosen
         menu.forEach(
           (item) => {
-            if (item.show_father == 0) {
+            const isPlaceholderRoute = !item.url_intranet_v2 || item.url_intranet_v2 === '#' || item.url_intranet_v2 === ''
+            if (item.show_father == 0 && !isPlaceholderRoute) {
               item.Hijos = []
             }
+            item.route = item.url_intranet_v2 || ''
           }
         )
         this.menu = menu
@@ -246,10 +248,12 @@ class AuthService {
 
         this.currentUser = user
         this.token = token
-        //if menu.show_father=0 then remove menu.Hijos
+        // Si show_father=0, quitar hijos solo cuando el ítem tiene una ruta real (no es un encabezado #).
+        // Así los ítems con url_intranet_v2 '#' siguen desglosando su menú si tienen Hijos.
         menu.forEach(
           (item) => {
-            if (item.show_father == 0) {
+            const isPlaceholderRoute = !item.url_intranet_v2 || item.url_intranet_v2 === '#' || item.url_intranet_v2 === ''
+            if (item.show_father == 0 && !isPlaceholderRoute) {
               item.Hijos = []
             }
             item.route = item.url_intranet_v2 || ''

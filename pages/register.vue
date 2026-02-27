@@ -723,8 +723,6 @@ async function handleRegister() {
                 repeatPassword: registerData.value.repeatPassword,
                 dni: registerData.value.dni,
                 fechaNacimiento: registerData.value.fechaNacimiento,
-                // Enviar las claves que el backend espera. `medioEncontrado` se mantiene
-                // para cumplir con la interfaz del método `register()`.
                 no_como_entero: registerData.value.no_como_entero || null,
                 no_otros_como_entero_empresa: registerData.value.no_otros_como_entero_empresa || null,
                 departamento: parseInt(registerData.value.departamento) || 1, // Usar 1 como default
