@@ -24,7 +24,15 @@
               class="w-full"
             />
           </UFormField>
-
+          <UFormField label="Destino de entrega:">
+            <USelectMenu
+              v-model="formData.destinoEntrega"
+              :items="destinosEntrega"
+              placeholder="Selecciona destino de entrega"
+              :disabled="loading || loadingForm"
+              class="w-full"
+            />
+          </UFormField>
           <!-- Tipo de comprobante -->
           <UFormField label="Escoge el tipo de comprobante:" required>
             <USelectMenu
@@ -37,15 +45,7 @@
           </UFormField>
 
           <!-- Destino de entrega -->
-          <UFormField label="Destino de entrega:">
-            <USelectMenu
-              v-model="formData.destinoEntrega"
-              :items="destinosEntrega"
-              placeholder="Selecciona destino de entrega"
-              :disabled="loading || loadingForm"
-              class="w-full"
-            />
-          </UFormField>
+         
 
           <!-- Datos para FACTURA -->
           <div v-if="formData.tipoComprobante?.value === 'FACTURA'" class="space-y-4">
