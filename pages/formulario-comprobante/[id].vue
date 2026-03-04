@@ -38,9 +38,10 @@
 
           <!-- Destino de entrega -->
           <UFormField label="Destino de entrega:">
-            <UInput
+            <USelectMenu
               v-model="formData.destinoEntrega"
-              placeholder="Ej: Lima, Callao, Provincias..."
+              :items="destinosEntrega"
+              placeholder="Selecciona destino de entrega"
               :disabled="loading || loadingForm"
               class="w-full"
             />
@@ -156,10 +157,15 @@ const tiposComprobante = [
   { label: 'FACTURA', value: 'FACTURA' }
 ]
 
+const destinosEntrega = [
+  { label: 'Lima', value: 'Lima' },
+  { label: 'Provincia', value: 'Provincia' }
+]
+
 const formData = reactive({
   importador: null as { label: string; value: string } | null,
-  tipoComprobante: { label: 'BOLETA', value: 'BOLETA' } as { label: string; value: string },
-  destinoEntrega: '',
+  tipoComprobante: null as { label: string; value: string } | null,
+  destinoEntrega: null as { label: string; value: string } | null,
   // FACTURA
   ruc: '',
   razonSocial: '',
