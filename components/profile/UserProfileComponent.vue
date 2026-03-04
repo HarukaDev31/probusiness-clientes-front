@@ -58,65 +58,27 @@
                         </p>
                         <p class="flex w-full flex-row sm:flex-row place-content-start gap-1 sm:gap-2">
                             <strong class="w-full sm:w-30 font-weight: 300;">País:</strong>
-                            <span v-if="!isEditingProfile" class="w-full sm:w-40 word-break break-words">{{
-                                (() => {
-                                    // Usar idCountry directamente del tipo UserProfile
-                                    if (userProfile.idCountry) {
-                                        const foundCountry = paises.find(p => p.value == userProfile.idCountry);
-                                        return foundCountry ? foundCountry.label : `ID: ${userProfile.idCountry}`;
-                                    }
-                                    return '-';
-                                })()
-                            }}</span>
+                            <span v-if="!isEditingProfile" class="w-full sm:w-40 word-break break-words">{{ userProfile.countryName || '-' }}</span>
                             <USelect v-else v-model="profileForm.country" class="edit-input w-full sm:w-40"
                                 :items="paises" placeholder="Seleccionar país" />
-
                         </p>
                         <p class="flex w-full flex-row sm:flex-row place-content-start gap-1 sm:gap-2">
                             <strong class="w-full sm:w-30 font-weight: 300;">Departamento:</strong>
-                            <span v-if="!isEditingProfile" class="w-full sm:w-40 word-break break-words">{{
-                                (() => {
-                                    // Usar idDepartment directamente del tipo UserProfile
-                                    if (userProfile.idDepartment) {
-                                        const foundDept = departamentos.find(d => d.value == userProfile.idDepartment);
-                                        return foundDept ? foundDept.label : `ID: ${userProfile.idDepartment}`;
-                                    }
-                                    return '-';
-                                })()
-                            }}</span>
+                            <span v-if="!isEditingProfile" class="w-full sm:w-40 word-break break-words">{{ userProfile.departamentoName || '-' }}</span>
                             <USelect v-else v-model="profileForm.department" class="edit-input w-full sm:w-40"
                                 :items="departamentos" placeholder="Seleccionar departamento"
                                 @change="handleDepartmentChange" />
                         </p>
                         <p class="flex w-full flex-row sm:flex-row place-content-start gap-1 sm:gap-2">
                             <strong class="w-full sm:w-30 font-weight: 300;">Provincia:</strong>
-
-                            <span v-if="!isEditingProfile" class="w-full sm:w-40 word-break break-words">{{
-                                (() => {
-                                    // Usar idProvince directamente del tipo UserProfile
-                                    if (userProfile.idProvince) {
-                                        const foundProvince = provincias.find(p => p.value == userProfile.idProvince);
-                                        return foundProvince ? foundProvince.label : `ID: ${userProfile.idProvince}`;
-                                    }
-                                    return '-';
-                                })()
-                            }}</span>
+                            <span v-if="!isEditingProfile" class="w-full sm:w-40 word-break break-words">{{ userProfile.cityName || '-' }}</span>
                             <USelect v-else v-model="profileForm.city" class="edit-input w-full sm:w-40"
                                 :items="provincias" placeholder="Seleccionar provincia"
                                 @change="handleProvinceChange" />
                         </p>
                         <p class="flex w-full flex-row sm:flex-row place-content-start gap-1 sm:gap-2">
                             <strong class="w-full sm:w-30 font-weight: 300;">Distrito:</strong>
-                            <span v-if="!isEditingProfile" class="w-full sm:w-40 word-break break-words">{{
-                                (() => {
-                                    // Usar idDistrict directamente del tipo UserProfile
-                                    if (userProfile.idDistrict) {
-                                        const foundDistrict = distritos.find(d => d.value == userProfile.idDistrict);
-                                        return foundDistrict ? foundDistrict.label : `ID: ${userProfile.idDistrict}`;
-                                    }
-                                    return '-';
-                                })()
-                            }}</span>
+                            <span v-if="!isEditingProfile" class="w-full sm:w-40 word-break break-words">{{ userProfile.distritoName || '-' }}</span>
                             <USelect v-else v-model="profileForm.district" class="edit-input w-full sm:w-40"
                                 :items="distritos" placeholder="Seleccionar distrito" />
                         </p>
@@ -165,7 +127,12 @@
                     body: 'w-full sm:p-4'
                 }"
             >
-                
+                <div class="edit-header flex flex-row w-full justify-end items-end mb-2">
+                    <UButton variant="ghost" @click="toggleEditBusiness"
+                        :icon="isEditingBusiness ? 'i-heroicons-x-mark' : 'i-heroicons-pencil'"
+                        class="h-8 w-8 align-end justify-end items-end">
+                    </UButton>
+                </div>
                 <div class="flex flex-col gap-4">
                     <p class="flex flex-row sm:flex-row place-content-start gap-1 sm:gap-0">
                         <strong class="w-full sm:w-48 font-weight: 300;">Empresa:</strong>
@@ -297,67 +264,34 @@ const businessForm = ref({
 
 // Inicializar datos
 onMounted(async () => {
-    userProfile.value = props.userProfile;    
-    
-    // Cargar países primero
+    userProfile.value = props.userProfile;
+
     await getPaises();
-    
-    // Si hay idCountry, ya está cargado, continuar con departamentos
-    if (userProfile.value.idCountry) {
-        // Cargar departamentos
-        await getDepartamentos();
-        
-        // Si hay idDepartment, cargar provincias de ese departamento
-        if (userProfile.value.idDepartment) {
-            await getProvincias(userProfile.value.idDepartment.toString());
-            
-            // Si hay idProvince, cargar distritos de esa provincia
-            if (userProfile.value.idProvince) {
-                await getDistritos(userProfile.value.idProvince.toString());
-            }
+    // Siempre cargamos departamentos (país por defecto = Perú = 1)
+    await getDepartamentos();
+
+    const depId = userProfile.value.idDepartment
+    if (depId) {
+        await getProvincias(depId.toString())
+        const provId = userProfile.value.idProvince
+        if (provId) {
+            await getDistritos(provId.toString())
         }
-    } else {
-        // Si no hay país, cargar todos los departamentos y provincias para mostrar
-        await getDepartamentos();
-        await getAllProvincias();
     }
-    
-    // Esperar un tick para que se carguen los datos
-    await nextTick();
-    
-    // Inicializar los formularios después de que los datos estén cargados
-    await initializeForms();
+
+    await nextTick()
+    await initializeForms()
 });
 
 const initializeForms = async () => {
-    console.log('🔧 Inicializando formularios con userProfile:', userProfile.value);
     
-    // Usar directamente los campos del tipo UserProfile
     const profile = userProfile.value;
-    
-    // Usar idCountry directamente del tipo
-    let countryAsNumber = profile.idCountry || null;
-    
-    // Usar idDepartment directamente del tipo
-    let departmentAsNumber = profile.idDepartment || null;
-    
-    // Si hay idDepartment pero no se han cargado las provincias, cargarlas
-    if (departmentAsNumber && provincias.value.length === 0) {
-        await getProvincias(departmentAsNumber.toString());
-        await nextTick();
-    }
-    
-    // Usar idProvince directamente del tipo
-    let cityAsNumber = profile.idProvince || null;
-    
-    // Si hay idProvince pero no se han cargado los distritos, cargarlos
-    if (cityAsNumber && distritos.value.length === 0) {
-        await getDistritos(cityAsNumber.toString());
-        await nextTick();
-    }
-    
-    // Usar idDistrict directamente del tipo
-    let districtAsNumber = profile.idDistrict || null;
+
+    // Si no tiene país asignado, default Perú = 1
+    const countryAsNumber = profile.idCountry || 1;
+    const departmentAsNumber = profile.idDepartment || null;
+    const cityAsNumber = profile.idProvince || null;
+    const districtAsNumber = profile.idDistrict || null;
 
     // Inicializar formulario de perfil usando los campos del tipo UserProfile
     profileForm.value = {
@@ -372,13 +306,6 @@ const initializeForms = async () => {
         phone: profile.phone || '',
         goals: profile.goals || ''
     };
-
-    console.log('🔧 Formulario inicializado con valores del tipo UserProfile:', {
-        country: countryAsNumber,
-        department: departmentAsNumber,
-        city: cityAsNumber,
-        district: districtAsNumber
-    });
 
     // Inicializar formulario de empresa
     if (userProfile.value.business) {
@@ -663,16 +590,14 @@ watch(() => props.userProfile, async (newUserProfile) => {
         // Forzar actualización del formKey para que el componente se re-renderice
         formKey.value++;
         
-        // Cargar datos de ubicación si hay IDs
-        if (newUserProfile.idCountry) {
-            await getPaises();
-            if (newUserProfile.idDepartment) {
-                await getDepartamentos();
-                await getProvincias(newUserProfile.idDepartment.toString());
-                if (newUserProfile.idProvince) {
-                    await getDistritos(newUserProfile.idProvince.toString());
-                }
-            }
+        // Cargar datos de ubicación (país siempre Perú por defecto)
+        await getPaises()
+        await getDepartamentos()
+        const depId = newUserProfile.idDepartment
+        if (depId) {
+            await getProvincias(depId.toString())
+            const provId = newUserProfile.idProvince
+            if (provId) await getDistritos(provId.toString())
         }
         
         // Solo reinicializar formularios si no estamos editando
@@ -683,20 +608,11 @@ watch(() => props.userProfile, async (newUserProfile) => {
     }
 }, { deep: true, immediate: true });
 
-// Watchers para reinicializar cuando se carguen los datos
-watch([paises, departamentos, provincias, distritos], async ([newPaises, newDepartamentos, newProvincias, newDistritos]) => {
-    // Solo reinicializar si NO estamos en modo de edición y hay datos cargados
-    if (newPaises.length > 0 && newDepartamentos.length > 0 && !isEditingProfile.value) {
-        // Si hay un idDepartment, esperar a que se carguen las provincias de ese departamento
-        if (userProfile.value.idDepartment && newProvincias.length === 0) {
-            await getProvincias(userProfile.value.idDepartment.toString());
-        }
-        // Si hay un idProvince, esperar a que se carguen los distritos de esa provincia
-        if (userProfile.value.idProvince && newDistritos.length === 0) {
-            await getDistritos(userProfile.value.idProvince.toString());
-        }
-        await nextTick();
-        await initializeForms();
+// Reinicializar formulario cuando se carguen paises y departamentos (solo fuera de edición)
+watch([paises, departamentos], async ([newPaises, newDeps]) => {
+    if (newPaises.length > 0 && newDeps.length > 0 && !isEditingProfile.value) {
+        await nextTick()
+        await initializeForms()
     }
 }, { deep: true });
 

@@ -15,12 +15,17 @@ export class ProfileService extends BaseService {
     static async getProfile(): Promise<UserProfileResponse> {
         try {
             const response = await this.apiCall<any>(`${this.baseUrl}/me`)
-            // Map backend field names to frontend UserProfile type
+            // /me devuelve IDs en id_country/id_department/id_province/id_district
+            // y nombres en country/department/city/district
             if (response.user) {
-                response.user.idCountry = response.user.country ?? response.user.idCountry ?? null
-                response.user.idDepartment = response.user.departamento ?? response.user.idDepartment ?? null
-                response.user.idProvince = response.user.city ?? response.user.idProvince ?? null
-                response.user.idDistrict = response.user.distrito ?? response.user.idDistrict ?? null
+                response.user.idCountry = response.user.id_country ?? 1  // default Perú
+                response.user.idDepartment = response.user.id_department ?? null
+                response.user.idProvince = response.user.id_province ?? null
+                response.user.idDistrict = response.user.id_district ?? null
+                response.user.countryName = response.user.country ?? null
+                response.user.departamentoName = response.user.department ?? null
+                response.user.cityName = response.user.city ?? null
+                response.user.distritoName = response.user.district ?? null
             }
             return response as UserProfileResponse
         } catch (error) {
@@ -71,12 +76,13 @@ export class ProfileService extends BaseService {
                 method: 'POST',
                 body: formData
             })
-            // Map backend field names to frontend UserProfile type
+            // /profile devuelve IDs en country/city/departamento/distrito
+            // y nombres en countryName/cityName/departamentoName/distritoName
             if (response.user) {
-                response.user.idCountry = response.user.country ?? response.user.idCountry ?? null
-                response.user.idDepartment = response.user.departamento ?? response.user.idDepartment ?? null
-                response.user.idProvince = response.user.city ?? response.user.idProvince ?? null
-                response.user.idDistrict = response.user.distrito ?? response.user.idDistrict ?? null
+                response.user.idCountry = response.user.country ?? 1  // default Perú
+                response.user.idDepartment = response.user.departamento ?? null
+                response.user.idProvince = response.user.city ?? null
+                response.user.idDistrict = response.user.distrito ?? null
             }
             return response as UserProfileResponse
         } catch (error) {
