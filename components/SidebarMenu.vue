@@ -38,7 +38,7 @@
         <template v-else>
           <template v-for="category in menuCategories" :key="category.id">
             <div class="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              {{ category.name }} xd
+              {{ category.name }} 
             </div>
 
             <div class="space-y-1 px-1">

@@ -194,7 +194,7 @@ const handleSubmit = async () => {
     const payload: Record<string, any> = {
       importador: formData.importador!.value,
       tipo_comprobante: formData.tipoComprobante.value,
-      destino_entrega: formData.destinoEntrega || null,
+      destino_entrega: formData.destinoEntrega?.value || null,
     }
 
     if (formData.tipoComprobante.value === 'FACTURA') {
