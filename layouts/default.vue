@@ -13,7 +13,7 @@
             <div class="flex items-center gap-2">
               <!-- Icono/logo de la empresa clickable -->
               <img src="https://intranet.probusiness.pe/assets/img/logos/probusiness.png" alt="Logo Empresa" class="h-8 w-8 rounded-full object-cover cursor-pointer" @click="navigateToHome" />
-              <h2 class="text-md font-semibold text-gray-900 dark:text-white">{{ pageTitle }}</h2>
+              <h2 class="text-md font-semibold text-gray-900 dark:text-white">ProBusiness</h2>
             </div>
             <UButton icon="i-heroicons-bars-3" variant="ghost" @click="toggleSidebar" />
           </div>
