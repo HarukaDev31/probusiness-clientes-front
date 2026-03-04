@@ -39,6 +39,7 @@ export interface RegisterCredentials {
   departamento?: number
   provincia?: number
   distrito?: number
+  pais_id?: number
 }
 
 export interface RegisterResponse {

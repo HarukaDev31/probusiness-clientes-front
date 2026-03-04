@@ -95,7 +95,7 @@ const circumference = computed(() => 2 * Math.PI * 60); // radio = 60
 const toggleParticipate = () => {
   if (!props.container.userIsPresent) {
     // Redirigir a WhatsApp con mensaje personalizado
-    const phoneNumber = '51992583703'; // Número sin espacios ni caracteres especiales
+    const phoneNumber = '51941874649'; // Número sin espacios ni caracteres especiales
     const message = `Hola deseo participar en el consolidado #${props.container.carga}`;
     const encodedMessage = encodeURIComponent(message);
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;

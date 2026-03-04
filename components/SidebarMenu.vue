@@ -45,7 +45,7 @@
               <template v-for="item in category.modules" :key="item.id">
                 <!-- Item padre con hijos: izquierda = navegación/opcional toggle, derecha = chevron que controla expand -->
       
-                <div v-if="item.Hijos && item.Hijos.length" class="w-full">
+                <div v-if="item.children && item.children.length" class="w-full">
                   <div class="flex items-center justify-between">
                     <!-- Left: clickable area (navega si tiene route, sino actúa como toggle) -->
                     <button type="button"

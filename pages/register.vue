@@ -135,6 +135,18 @@
                     />
                     <p v-if="fieldErrors.dni" class="text-red-500 text-xs mt-1">{{ fieldErrors.dni }}</p>
                 </div>
+                <!-- Campo Nacionalidad -->
+                <div>
+                    <label class="block text-gray-600 mb-1" for="pais_id">Nacionalidad</label>
+                    <USelect
+                        id="pais_id"
+                        v-model="registerData.pais_id"
+                        :items="paises"
+                        placeholder="Selecciona tu país"
+                        class="w-full"
+                    />
+                </div>
+
                 <!--FIELD FECHA DE NACIMIENTO-->
                 <div class="relative">
                     <label class="block text-gray-600 mb-1" for="fechaNacimiento">Fecha de Nacimiento</label>
@@ -407,9 +419,11 @@ import { useModal } from '@/composables/commons/useModal'
 import { useAuth } from '@/composables/auth/useAuth'
 import { useSpinner } from '../composables/commons/useSpinner'
 import { useLocation } from '../composables/commons/useLocation'
+import { useOptions } from '../composables/commons/useOptions'
 const { withSpinner } = useSpinner()
 const { register, loading: registerLoading, error: registerError } = useAuth()
 const { departamentos, provincias, distritos, getDepartamentos, getProvincias, getDistritos, loadingDepartamentos, loadingProvincias, loadingDistritos } = useLocation()
+const { paises, getPaises } = useOptions()
 const router = useRouter()
 
 const showRegister = ref(false)
@@ -427,7 +441,8 @@ const registerData = ref({
     no_otros_como_entero_empresa: '',
     departamento: null,
     provincia: null,
-    distrito: null
+    distrito: null,
+    pais_id: null
 })
 
 // Estados de validación para cada campo
@@ -443,7 +458,8 @@ const fieldErrors = ref({
     no_otros_como_entero_empresa: '',
     departamento: '',
     provincia: '',
-    distrito: ''
+    distrito: '',
+    pais_id: ''
 })
 
 const showForgot = ref(false)
@@ -727,7 +743,8 @@ async function handleRegister() {
                 no_otros_como_entero_empresa: registerData.value.no_otros_como_entero_empresa || null,
                 departamento: parseInt(registerData.value.departamento) || 1, // Usar 1 como default
                 provincia: parseInt(registerData.value.provincia) || 1, // Usar 1 como default
-                distrito: parseInt(registerData.value.distrito) || 1 // Usar 1 como default
+                distrito: parseInt(registerData.value.distrito) || 1, // Usar 1 como default
+                pais_id: registerData.value.pais_id ? parseInt(registerData.value.pais_id) : null
             }
             
             console.log('📤 Datos enviados al backend:', requestData)
@@ -774,21 +791,23 @@ function closeRegister() {
         no_otros_como_entero_empresa: '',
         departamento: null,
         provincia: null,
-        distrito: null
+        distrito: null,
+        pais_id: null
     }
-    fieldErrors.value = { 
-        nombre: '', 
-        email: '', 
-        whatsapp: '', 
-        password: '', 
-        repeatPassword: '', 
-        dni: '', 
-        fechaNacimiento: '', 
+    fieldErrors.value = {
+        nombre: '',
+        email: '',
+        whatsapp: '',
+        password: '',
+        repeatPassword: '',
+        dni: '',
+        fechaNacimiento: '',
         no_como_entero: '',
         no_otros_como_entero_empresa: '',
         departamento: '',
         provincia: '',
-        distrito: ''
+        distrito: '',
+        pais_id: ''
     }
     // Limpiar también el DatePicker personalizado
     selectedDay.value = ''
@@ -932,6 +951,12 @@ onMounted(async () => {
         console.log('✅ Register.vue: Departamentos cargados exitosamente')
     } catch (error) {
         console.error('❌ Register.vue: Error al cargar departamentos:', error)
+    }
+
+    try {
+        await getPaises()
+    } catch (error) {
+        console.error('❌ Register.vue: Error al cargar países:', error)
     }
 })
 

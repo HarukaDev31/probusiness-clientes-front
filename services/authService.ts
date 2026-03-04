@@ -245,16 +245,19 @@ class AuthService {
         }
         const token = response.token
         const menu: AuthMenu[] = response.menus || []
-
+        console.log(menu)
         this.currentUser = user
         this.token = token
         // Si show_father=0, quitar hijos solo cuando el ítem tiene una ruta real (no es un encabezado #).
         // Así los ítems con url_intranet_v2 '#' siguen desglosando su menú si tienen Hijos.
         menu.forEach(
           (item) => {
-            const isPlaceholderRoute = !item.url_intranet_v2 || item.url_intranet_v2 === '#' || item.url_intranet_v2 === ''
+            const isPlaceholderRoute = !item.No_Menu_Url || item.No_Menu_Url === '#' || item.No_Menu_Url === ''
+              || !item.url_intranet_v2 || item.url_intranet_v2 === '#' || item.url_intranet_v2 === ''
             if (item.show_father == 0 && !isPlaceholderRoute) {
               item.Hijos = []
+            } else {
+              item.Hijos = item.Hijos || []
             }
             item.route = item.url_intranet_v2 || ''
           }
@@ -306,7 +309,8 @@ class AuthService {
         no_otros_como_entero_empresa: credentials.no_otros_como_entero_empresa,
         departamento_id: credentials.departamento,
         provincia_id: credentials.provincia,
-        distrito_id: credentials.distrito
+        distrito_id: credentials.distrito,
+        pais_id: credentials.pais_id
       }
       
       console.log('🔧 AuthService: Enviando al backend:', requestPayload)

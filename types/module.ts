@@ -59,6 +59,7 @@ export interface SidebarModule {
   hasNotifications: boolean
   notificationCount: number
   permissions: string[]
+  Hijos: SidebarModule[]
 }
 
 export interface SidebarCategory {

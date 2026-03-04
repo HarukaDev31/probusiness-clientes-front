@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/Lenovo/.claude/projects/c--Users-Lenovo-Desktop-Proyectos-Probusiness-probusiness-clientes-front/5e31c917-11ad-42a3-8f00-1969253fcbc3/tool-results/**)"
+    ]
+  }
+}
