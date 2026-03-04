@@ -14,8 +14,15 @@ export class ProfileService extends BaseService {
     
     static async getProfile(): Promise<UserProfileResponse> {
         try {
-            const response = await this.apiCall<UserProfileResponse>(`${this.baseUrl}/me`)
-            return response
+            const response = await this.apiCall<any>(`${this.baseUrl}/me`)
+            // Map backend field names to frontend UserProfile type
+            if (response.user) {
+                response.user.idCountry = response.user.country ?? response.user.idCountry ?? null
+                response.user.idDepartment = response.user.departamento ?? response.user.idDepartment ?? null
+                response.user.idProvince = response.user.city ?? response.user.idProvince ?? null
+                response.user.idDistrict = response.user.distrito ?? response.user.idDistrict ?? null
+            }
+            return response as UserProfileResponse
         } catch (error) {
             console.error('Error al cargar el perfil:', error)
             throw error
@@ -60,11 +67,18 @@ export class ProfileService extends BaseService {
                 console.log(`${key}:`, value);
             }
 
-            const response = await this.apiCall<UserProfileResponse>(`${this.baseUrl}/profile`, {
+            const response = await this.apiCall<any>(`${this.baseUrl}/profile`, {
                 method: 'POST',
                 body: formData
             })
-            return response
+            // Map backend field names to frontend UserProfile type
+            if (response.user) {
+                response.user.idCountry = response.user.country ?? response.user.idCountry ?? null
+                response.user.idDepartment = response.user.departamento ?? response.user.idDepartment ?? null
+                response.user.idProvince = response.user.city ?? response.user.idProvince ?? null
+                response.user.idDistrict = response.user.distrito ?? response.user.idDistrict ?? null
+            }
+            return response as UserProfileResponse
         } catch (error) {
             console.error('Error al actualizar el perfil:', error)
             throw error
