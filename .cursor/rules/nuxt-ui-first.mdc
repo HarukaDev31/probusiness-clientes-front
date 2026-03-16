@@ -1,0 +1,17 @@
+---
+description: Usar primero Nuxt UI v3, luego componentes del proyecto, después implementar desde cero
+globs: "**/*.vue,**/components/**/*"
+alwaysApply: false
+---
+
+# Prioridad de componentes UI
+
+Al añadir o modificar interfaz (botones, formularios, modales, cards, listas, etc.) sigue siempre este orden:
+
+1. **Nuxt UI v3** — Revisar y usar componentes oficiales: UButton, UCard, UModal, UInput, UFormField, USelectMenu, UTabs, UAlert, UBadge, UAvatar, UIcon, UTooltip, UButtonGroup, USkeleton, USeparator, etc. Documentación: https://ui.nuxt.com/
+2. **Reutilizar** — Buscar en `components/` y en el proyecto si ya existe un componente o composable que resuelva el caso; usarlo o extenderlo.
+3. **Desde cero** — Solo si no hay opción en (1) ni (2), implementar nuevo usando Nuxt UI como base cuando sea posible.
+
+No introducir librerías de UI externas para casos cubiertos por Nuxt UI o por componentes existentes en el proyecto.
+
+**Modales:** No poner UModal inline en la página. Crear un componente aparte que envuelva UModal, emitir `close`, y abrirlo con `useOverlay()` (overlay.create(Component), luego instance.open(props)). Pasar dependencias por props; los overlays no tienen acceso a provide/inject de la página.

@@ -66,90 +66,96 @@
             </div>
           </template>
 
-          <!-- Contenido por proveedor -->
-          <div v-for="item in providersWithFiles" :key="item.provider.id">
-            <div v-show="activeProviderId === item.provider.id">
-              <!-- Empty state con UCard -->
-              <UCard v-if="item.files.length === 0" class="bg-gray-50 dark:bg-gray-800/50">
-                <div class="flex flex-col items-center justify-center py-14">
-                  <UAvatar
-                    icon="i-heroicons-photo"
-                    size="2xl"
-                    class="bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500"
+          <!-- Contenido por proveedor (solo renderiza el proveedor activo para mejor rendimiento) -->
+          <div v-if="currentProvider">
+            <!-- Empty state con UCard -->
+            <UCard v-if="currentProvider.files.length === 0" class="bg-gray-50 dark:bg-gray-800/50">
+              <div class="flex flex-col items-center justify-center py-14">
+                <UAvatar
+                  icon="i-heroicons-photo"
+                  size="2xl"
+                  class="bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500"
+                />
+                <p class="mt-3 text-sm text-gray-600 dark:text-gray-400">
+                  Sin archivos de inspección
+                </p>
+              </div>
+            </UCard>
+
+            <!-- Galería: UCard por archivo, UBadge, acciones -->
+            <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" style="gap: 1em;">
+              <UCard
+                v-for="file in currentProvider.files"
+                :key="file.id"
+                class="overflow-hidden p-0"
+              >
+                <button
+                  type="button"
+                  class="relative block aspect-video w-full overflow-hidden bg-gray-200 dark:bg-gray-700"
+                  @click="isVideo(file.file_ext) ? openVideo(file) : openInNewTab(file)"
+                >
+                  <img
+                    v-if="isImage(file.file_ext)"
+                    :src="fileUrl(file.file_url)"
+                    :alt="file.file_name"
+                    class="h-full w-full object-cover min-h-48 object-center text-center items-center justify-center"
+                    loading="lazy"
                   />
-                  <p class="mt-3 text-sm text-gray-600 dark:text-gray-400">
-                    Sin archivos de inspección
-                  </p>
+                  <template v-else-if="isVideo(file.file_ext)">
+                    <div class="h-full w-full bg-gray-300 dark:bg-gray-600 min-h-48 text-center" />
+                    <div class="absolute inset-0 flex items-center justify-center">
+                      <span class="flex h-14 w-14 items-center justify-center rounded-full bg-orange-500 text-white shadow-md">
+                        <UIcon name="i-heroicons-play" class="h-7 w-7 ml-0.5" />
+                      </span>
+                    </div>
+                  </template>
+                  <div v-else class="flex h-full w-full items-center justify-center bg-gray-200 dark:bg-gray-700">
+                    <UIcon name="i-heroicons-document" class="h-12 w-12 text-gray-400 dark:text-gray-500" />
+                  </div>
+                </button>
+                <div class="flex items-start justify-between gap-2 p-4">
+                  <div class="min-w-0 flex-1">
+                    <UTooltip :text="file.file_name" :popper="{ placement: 'top' }">
+                      <p class="truncate text-sm font-medium text-gray-900 dark:text-white">
+                        {{ file.file_name }}
+                      </p>
+                    </UTooltip>
+                    <UBadge
+                      :label="fileTypeLabel(file.file_ext)"
+                      size="xs"
+                      color="neutral"
+                      variant="soft"
+                      class="mt-1"
+                    />
+                  </div>
+                  <UButtonGroup size="xs" orientation="horizontal">
+                    <UButton
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-heroicons-arrow-down-tray"
+                      aria-label="Descargar"
+                      :loading="downloadingId === file.id"
+                      @click="downloadFile(file)"
+                    />
+                    <UButton
+                      v-if="!isVideo(file.file_ext)"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-heroicons-arrow-top-right-on-square"
+                      aria-label="Abrir en nueva pestaña"
+                      @click="openInNewTab(file)"
+                    />
+                    <UButton
+                      v-else
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-heroicons-play"
+                      aria-label="Ver aquí"
+                      @click="openVideo(file)"
+                    />
+                  </UButtonGroup>
                 </div>
               </UCard>
-
-              <!-- Galería: UCard por archivo, UBadge, ULink, UButtonGroup -->
-              <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" style="gap: 1em;">
-                <UCard
-                  v-for="file in item.files"
-                  :key="file.id"
-                  class="overflow-hidden p-0"
-                >
-                  <ULink
-                    :to="fileUrl(file.file_url)"
-                    target="_blank"
-                    class="relative block aspect-video w-full overflow-hidden bg-gray-200 dark:bg-gray-700"
-                  >
-                    <img
-                      v-if="isImage(file.file_ext)"
-                      :src="fileUrl(file.file_url)"
-                      :alt="file.file_name"
-                      class="h-full w-full object-cover min-h-48 object-center text-center items-center justify-center"
-                      loading="lazy"
-                    />
-                    <template v-else-if="isVideo(file.file_ext)">
-                      <div class="h-full w-full bg-gray-300 dark:bg-gray-600 min-h-48 text-center" />
-                      <div class="absolute inset-0 flex items-center justify-center">
-                        <span class="flex h-14 w-14 items-center justify-center rounded-full bg-orange-500 text-white shadow-md">
-                          <UIcon name="i-heroicons-play" class="h-7 w-7 ml-0.5" />
-                        </span>
-                      </div>
-                    </template>
-                    <div v-else class="flex h-full w-full items-center justify-center bg-gray-200 dark:bg-gray-700">
-                      <UIcon name="i-heroicons-document" class="h-12 w-12 text-gray-400 dark:text-gray-500" />
-                    </div>
-                  </ULink>
-                  <div class="flex items-start justify-between gap-2 p-4">
-                    <div class="min-w-0 flex-1">
-                      <UTooltip :text="file.file_name" :popper="{ placement: 'top' }">
-                        <p class="truncate text-sm font-medium text-gray-900 dark:text-white">
-                          {{ file.file_name }}
-                        </p>
-                      </UTooltip>
-                      <UBadge
-                        :label="fileTypeLabel(file.file_ext)"
-                        size="xs"
-                        color="neutral"
-                        variant="soft"
-                        class="mt-1"
-                      />
-                    </div>
-                    <UButtonGroup v-if="!isVideo(file.file_ext)" size="xs" orientation="horizontal">
-                      <UButton
-                        :to="fileUrl(file.file_url)"
-                        target="_blank"
-                        color="neutral"
-                        variant="ghost"
-                        icon="i-heroicons-arrow-down-tray"
-                        aria-label="Descargar"
-                      />
-                      <UButton
-                        :to="fileUrl(file.file_url)"
-                        target="_blank"
-                        color="neutral"
-                        variant="ghost"
-                        icon="i-heroicons-arrow-top-right-on-square"
-                        aria-label="Abrir"
-                      />
-                    </UButtonGroup>
-                  </div>
-                </UCard>
-              </div>
             </div>
           </div>
         </UCard>
@@ -169,12 +175,15 @@
         </UCard>
       </template>
     </UContainer>
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { getInspeccionByUuid } from '~/services/inspeccionPublicaService'
 import type { InspeccionPublicaData, FileAlmacenInspectionItem, ProviderInspeccion } from '~/types/inspeccionPublica'
+import VideoInspeccionModal from '~/components/inspeccion/VideoInspeccionModal.vue'
+import { useOverlay } from '#imports'
 
 definePageMeta({
   layout: 'auth',
@@ -182,20 +191,19 @@ definePageMeta({
 })
 
 const route = useRoute()
+const router = useRouter()
 const uuid = route.params.uuid as string
 
-const config = useRuntimeConfig()
-const apiBaseUrl = config.public.apiBaseUrl
+const overlay = useOverlay()
+const videoModal = overlay.create(VideoInspeccionModal, { destroyOnClose: false })
 
 const data = ref<InspeccionPublicaData | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-/** URL absoluta para archivos (file_url viene como ruta relativa tipo inspection/xxx.jpg) */
+/** file_url ya viene como URL absoluta desde la API */
 function fileUrl(path: string): string {
-  if (!path) return ''
-  if (path.startsWith('http')) return path
-  return `${apiBaseUrl}/storage/${path.replace(/^\//, '')}`
+  return path || ''
 }
 
 function isImage(ext: string): boolean {
@@ -238,6 +246,11 @@ const providersWithFiles = computed<ProviderWithFiles[]>(() => {
 
 const activeProviderId = ref<number | null>(null)
 
+const currentProvider = computed<ProviderWithFiles | null>(() => {
+  if (activeProviderId.value === null) return null
+  return providersWithFiles.value.find((item) => item.provider.id === activeProviderId.value) || null
+})
+
 /** Items para UTabs: label, value y badge con cantidad */
 const tabItems = computed(() =>
   providersWithFiles.value.map((item) => ({
@@ -246,11 +259,82 @@ const tabItems = computed(() =>
   }))
 )
 
+// Leer id_proveedor de la ruta (query) y seleccionar el tab correspondiente
+const getProviderIdFromRoute = () => {
+  const qp = route.query.id_proveedor
+  if (!qp) return null
+  const num = Array.isArray(qp) ? Number(qp[0]) : Number(qp)
+  return Number.isNaN(num) ? null : num
+}
+
 watch(providersWithFiles, (list) => {
-  if (list.length > 0 && activeProviderId.value === null) {
+  if (list.length === 0) return
+
+  const fromRoute = getProviderIdFromRoute()
+  if (fromRoute && list.some((item) => item.provider.id === fromRoute)) {
+    activeProviderId.value = fromRoute
+  } else if (activeProviderId.value === null) {
     activeProviderId.value = list[0].provider.id
   }
 }, { immediate: true })
+
+// Si cambia el proveedor activo, actualizar la query para que la URL quede linkeable
+watch(activeProviderId, (id) => {
+  if (id === null) return
+  router.replace({
+    query: {
+      ...route.query,
+      id_proveedor: String(id),
+    },
+  })
+})
+
+// Reaccionar a cambios manuales en la URL
+watch(
+  () => route.query.id_proveedor,
+  () => {
+    const fromRoute = getProviderIdFromRoute()
+    if (fromRoute && providersWithFiles.value.some((item) => item.provider.id === fromRoute)) {
+      activeProviderId.value = fromRoute
+    }
+  }
+)
+
+const openVideo = (file: FileAlmacenInspectionItem) => {
+  videoModal.open({ file })
+}
+
+const downloadingId = ref<number | null>(null)
+
+async function downloadFile(file: FileAlmacenInspectionItem) {
+  const url = fileUrl(file.file_url)
+  if (!url) return
+  const fileName = file.file_name || 'archivo'
+  downloadingId.value = file.id
+  try {
+    const res = await fetch(url, { mode: 'cors' })
+    if (!res.ok) throw new Error(res.statusText)
+    const blob = await res.blob()
+    const blobUrl = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = blobUrl
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(blobUrl)
+  } catch {
+    window.open(url, '_blank')
+  } finally {
+    downloadingId.value = null
+  }
+}
+
+const openInNewTab = (file: FileAlmacenInspectionItem) => {
+  const url = fileUrl(file.file_url)
+  if (!url) return
+  window.open(url, '_blank')
+}
 
 onMounted(async () => {
   try {
