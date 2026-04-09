@@ -94,6 +94,18 @@
                                 userProfile.phone || '-' }}</span>
                             <UInput v-else v-model="profileForm.phone" class="edit-input w-full sm:w-40" />
                         </p>
+                        <p class="flex w-full flex-col sm:flex-row place-content-start gap-1 sm:gap-2">
+                            <strong class="w-full sm:w-30 font-weight: 300 shrink-0">Domicilio fiscal:</strong>
+                            <span v-if="!isEditingProfile" class="w-full sm:flex-1 word-break break-words whitespace-pre-wrap">{{
+                                userProfile.domicilioFiscal || '-' }}</span>
+                            <UTextarea
+                                v-else
+                                v-model="profileForm.domicilioFiscal"
+                                class="edit-input w-full sm:flex-1 min-h-24"
+                                placeholder="Dirección fiscal para comprobantes (se puede completar también en el formulario de comprobante)"
+                                :rows="4"
+                            />
+                        </p>
                     </div>
                     <!-- Botón de guardar para el perfil -->
                     <UButton v-if="isEditingProfile" @click="saveProfile" :loading="loading"
@@ -252,7 +264,8 @@ const profileForm = ref({
     city: null as number | null,
     district: null as number | null,
     phone: '',
-    goals: ''
+    goals: '',
+    domicilioFiscal: ''
 });
 
 const businessForm = ref({
@@ -304,7 +317,8 @@ const initializeForms = async () => {
         city: cityAsNumber,
         district: districtAsNumber,
         phone: profile.phone || '',
-        goals: profile.goals || ''
+        goals: profile.goals || '',
+        domicilioFiscal: profile.domicilioFiscal || ''
     };
 
     // Inicializar formulario de empresa
@@ -429,6 +443,7 @@ const saveProfile = async () => {
         apiData.dni = profileForm.value.documentNumber || '';
         apiData.fecha_nacimiento = profileForm.value.fechaNacimiento || '';
         apiData.goals = profileForm.value.goals || '';
+        apiData.domicilio_fiscal = profileForm.value.domicilioFiscal || '';
         
         // Campos de ubicación - SIEMPRE incluir si tienen valores
         if (profileForm.value.country !== null && profileForm.value.country !== undefined) {

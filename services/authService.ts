@@ -23,6 +23,7 @@ export interface AuthUser {
   department?: number
   district?: number
   goals?: string
+  domicilioFiscal?: string
   empresa?: string
   fechaNacimiento?: string
   no_como_entero?: number | null
@@ -239,6 +240,7 @@ class AuthService {
           country: response.user.country,
           city: response.user.city,
           goals: response.user.goals,
+          domicilioFiscal: response.user.domicilio_fiscal,
           empresa: response.user.empresa,
           fechaNacimiento: response.user.fechaNacimiento, 
           raw: response.user.raw

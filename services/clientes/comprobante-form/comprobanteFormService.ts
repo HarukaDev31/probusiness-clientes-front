@@ -20,9 +20,11 @@ export class ComprobanteFormService extends BaseService {
             })
         } catch (error: any) {
             console.error('Error al guardar el formulario de comprobante:', error)
+            const data = error?.data || error?.response?.data || {}
             return {
                 success: false,
-                error: error?.response?.data?.message || error?.data?.message || error?.message || 'Error al guardar los datos',
+                error: data?.message || error?.message || 'Error al guardar los datos',
+                errors: data?.errors || {},
                 statusCode: error?.status || error?.statusCode || 500
             }
         }

@@ -18,6 +18,8 @@ export interface UserProfile{
     cityName?:string,
     distritoName?:string,
     phone?:string,
+    /** Domicilio fiscal (facturación); sincronizado con formulario de comprobante si aplica */
+    domicilioFiscal?:string,
     soldCBM:number,
     embarquedCBM:number,
     goals?:string,

@@ -26,6 +26,7 @@ export class ProfileService extends BaseService {
                 response.user.departamentoName = response.user.department ?? null
                 response.user.cityName = response.user.city ?? null
                 response.user.distritoName = response.user.district ?? null
+                response.user.domicilioFiscal = response.user.domicilio_fiscal ?? ''
             }
             return response as UserProfileResponse
         } catch (error) {
@@ -60,6 +61,9 @@ export class ProfileService extends BaseService {
             
             if (profileData.phone !== undefined) formData.append('phone', profileData.phone)
             if (profileData.goals !== undefined) formData.append('goals', profileData.goals)
+            if (profileData.domicilio_fiscal !== undefined) {
+                formData.append('domicilio_fiscal', profileData.domicilio_fiscal ?? '')
+            }
             
             // Agregar foto si existe
             if (photoFile) {
@@ -83,6 +87,7 @@ export class ProfileService extends BaseService {
                 response.user.idDepartment = response.user.departamento ?? null
                 response.user.idProvince = response.user.city ?? null
                 response.user.idDistrict = response.user.distrito ?? null
+                response.user.domicilioFiscal = response.user.domicilio_fiscal ?? ''
             }
             return response as UserProfileResponse
         } catch (error) {
