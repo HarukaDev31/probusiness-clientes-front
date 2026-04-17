@@ -87,32 +87,24 @@
           </div>
         </div>
       </div>
-      <div class="text-center mb-8">
-        <!-- Mensaje de información importante -->
-        <div v-if="currentStep === 1" class="max-w-4xl mx-auto">
-          <div class="bg-yellow-50 dark:bg-yellow-800 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4 mb-6">
-            <div class="flex items-start">
-              <div class="flex-shrink-0">
-                <UIcon name="i-heroicons-information-circle" class="h-5 w-5 text-yellow-600" />
-              </div>
-              <div class="ml-3">
-                <p class="text-sm text-yellow-800 dark:text-yellow-100">
-                  <strong>Los datos que ingreses en este formulario son totalmente confidenciales.</strong> ProBusiness los utilizará únicamente para fines internos y la gestión de tu pedido, no serán compartidos ni divulgados públicamente.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Form Container -->
       <UCard class="max-w-4xl mx-auto">
         <form @submit.prevent="handleSubmit">
           <!-- Paso 1: Información básica -->
           <div v-if="currentStep === 1" class="space-y-6">
-            <div class="text-center mb-6">
+            <div class="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
+              <div class="flex items-start gap-3">
+                <UIcon name="i-heroicons-exclamation-circle" class="h-5 w-5 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
+                <p class="text-sm text-yellow-800 dark:text-yellow-100 text-left leading-relaxed">
+                  <span class="font-semibold">Los datos de este formulario son confidenciales.</span>
+                  ProBusiness los usará únicamente para gestionar tu pedido y no serán compartidos.
+                </p>
+              </div>
+            </div>
+
+            <div class="text-center mb-2">
               <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
-                Persona que recoja la carga:
+                Persona que recoja la carga
               </h2>
             </div>
 
@@ -127,25 +119,70 @@
               </UFormField>
             </div>
 
-            <UFormField label="Selecciona el nombre del importador:" required>
-              <USelectMenu 
-                v-model="formData.importador" 
-                :items="clientes" 
-                placeholder="Selecciona el importador"
-                :disabled="loading" 
-                class="w-full"
-                @update:model-value="handleImportadorChange" />
-            </UFormField>
+            <div class="flex items-center justify-center gap-2 text-gray-900 dark:text-white pt-2">
+              <UIcon name="i-heroicons-cube" class="h-6 w-6 text-primary-500 shrink-0" />
+              <h3 class="text-lg font-semibold">
+                Datos de la importación
+              </h3>
+            </div>
 
-            <UFormField label="Escoge el tipo de comprobante:" required>
-              <USelectMenu v-model="formData.tipoComprobante" :items="tiposComprobante"
-                placeholder="Selecciona tipo de comprobante" :disabled="loading" class="w-full" />
-            </UFormField>
+            <div class="space-y-2">
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide text-center">
+                Importador
+              </p>
+              <UFormField label="Selecciona el nombre del importador" required>
+                <USelectMenu
+                  v-model="formData.importador"
+                  :items="clientes"
+                  placeholder="— Elige un importador —"
+                  :disabled="loading"
+                  class="w-full"
+                  @update:model-value="handleImportadorChange"
+                />
+              </UFormField>
+            </div>
 
-            <UFormField label="Tipos de productos importado (juguetes, stickers, botellas ... etc):" required>
-              <UTextarea v-model="formData.tiposProductos" placeholder="Describe los productos importados" :rows="3"
-                :disabled="loading" class="w-full" />
-            </UFormField>
+            <div v-if="formData.importador?.value" class="space-y-3">
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide text-center">
+                Mercancías
+              </p>
+              <div class="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-950">
+                <div v-if="mercanciasSeleccionadas.length === 0" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                  No hay proveedores embarcados registrados para esta cotización.
+                </div>
+                <table v-else class="w-full text-sm text-left">
+                  <thead>
+                    <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+                      <th class="px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                        Proveedor
+                      </th>
+                      <th class="px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide text-right w-24">
+                        Bultos
+                      </th>
+                      <th class="px-4 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                        Producto
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    <tr v-for="(row, idx) in mercanciasSeleccionadas" :key="idx" class="text-gray-900 dark:text-gray-100">
+                      <td class="px-4 py-3">{{ row.proveedor || '—' }}</td>
+                      <td class="px-4 py-3 text-right tabular-nums">{{ formatBultosMercancia(row.bultos) }}</td>
+                      <td class="px-4 py-3">{{ row.producto || '—' }}</td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr class="border-t border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-900/40 font-semibold">
+                      <td class="px-4 py-3 text-gray-900 dark:text-white">Total</td>
+                      <td class="px-4 py-3 text-right tabular-nums text-primary-600 dark:text-primary-400">
+                        {{ formatBultosMercancia(totalBultosEmbarcados) }}
+                      </td>
+                      <td class="px-4 py-3" />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
           </div>
 
           <!-- Paso 2: Datos del cliente -->
@@ -392,15 +429,45 @@ const tiposComprobante = [
   { label: 'FACTURA', value: 'FACTURA' }
 ]
 
+function formatBultosMercancia (n: number) {
+  const x = Number(n)
+  if (!Number.isFinite(x)) return '0'
+  if (Number.isInteger(x)) return String(x)
+  return x.toLocaleString('es-PE', { maximumFractionDigits: 2 })
+}
+
+const mercanciasSeleccionadas = computed(() => {
+  const uuid = formData.importador?.value
+  if (!uuid) return []
+  return clientes.value.find(c => c.value === uuid)?.mercancias ?? []
+})
+
+const totalBultosEmbarcados = computed(() =>
+  mercanciasSeleccionadas.value.reduce((sum, m) => sum + (Number(m.bultos) || 0), 0)
+)
+
+watch(
+  [() => formData.importador?.value, clientes],
+  () => {
+    const uuid = formData.importador?.value
+    if (!uuid) {
+      formData.tiposProductos = ''
+      return
+    }
+    const rows = clientes.value.find(c => c.value === uuid)?.mercancias ?? []
+    const names = [...new Set(rows.map(r => r.producto).filter(Boolean))]
+    formData.tiposProductos = names.length ? names.join(', ') : ''
+  },
+  { deep: true, immediate: true }
+)
+
 // Validaciones por paso
 const canProceedToNextStep = computed(() => {
   switch (currentStep.value) {
     case 1:
-      return formData.nombreCompleto &&
+      return Boolean(formData.nombreCompleto &&
         formData.dni &&
-        formData.importador &&
-        formData.tipoComprobante &&
-        formData.tiposProductos
+        formData.importador?.value)
     case 2:
       if (formData.tipoComprobante.value === 'BOLETA') {
         return formData.clienteDni && formData.clienteNombre && formData.clienteCorreo
@@ -523,20 +590,16 @@ const canNavigateToStep = (stepNumber: number) => {
   
   // Para ir al paso 2, debe completar el paso 1
   if (stepNumber === 2) {
-    return formData.nombreCompleto &&
+    return Boolean(formData.nombreCompleto &&
       formData.dni &&
-      formData.importador &&
-      formData.tipoComprobante &&
-      formData.tiposProductos
+      formData.importador?.value)
   }
   
   // Para ir al paso 3, debe completar el paso 2
   if (stepNumber === 3) {
-    const step1Valid = formData.nombreCompleto &&
+    const step1Valid = Boolean(formData.nombreCompleto &&
       formData.dni &&
-      formData.importador &&
-      formData.tipoComprobante &&
-      formData.tiposProductos
+      formData.importador?.value)
       
     const step2Valid = formData.tipoComprobante.value === 'BOLETA'
       ? (formData.clienteDni && formData.clienteNombre && formData.clienteCorreo)
@@ -549,11 +612,9 @@ const canNavigateToStep = (stepNumber: number) => {
   
   // Para ir al paso 4, debe completar el paso 3 (que es opcional)
   if (stepNumber === 4) {
-    const step1Valid = formData.nombreCompleto &&
+    const step1Valid = Boolean(formData.nombreCompleto &&
       formData.dni &&
-      formData.importador &&
-      formData.tipoComprobante &&
-      formData.tiposProductos
+      formData.importador?.value)
       
     const step2Valid = formData.tipoComprobante.value === 'BOLETA'
       ? (formData.clienteDni && formData.clienteNombre && formData.clienteCorreo)
@@ -714,10 +775,8 @@ const handleImportadorChange = async (newValue: any) => {
         if (savedFormData.dni) {
           formData.dni = savedFormData.dni
         }
-        if (savedFormData.tiposProductos) {
-          formData.tiposProductos = savedFormData.tiposProductos
-        }
-        
+        // tiposProductos: lo arma el watch desde las mercancías de la cotización seleccionada
+
         // Actualizar tipo de comprobante si viene del formulario guardado
         if (savedFormData.tipoComprobante) {
           formData.tipoComprobante = savedFormData.tipoComprobante

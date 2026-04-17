@@ -19,6 +19,8 @@ export const useDelivery = () => {
             return response
         } catch (error) {
             console.error('Error al obtener el delivery por consolidado id:', error)
+            clientes.value = []
+            carga.value = null
         } finally {
             loading.value = false
         }

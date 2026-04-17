@@ -7,17 +7,13 @@ export class BaseService {
 
   protected static async apiCall<T>(endpoint: string, options: any = {}): Promise<T> {
     try {
-      console.log('🔧 BaseService: Iniciando API call a:', endpoint)
-      console.log('🔧 BaseService: Options:', options)
-      console.log('🔧 BaseService: NuxtApp disponible:', !!this.nuxtApp)
+ 
       
       if (!this.nuxtApp) {
         throw new Error('Nuxt app not initialized')
       }
       
-      console.log('🔧 BaseService: Llamando a $api.call...')
       const result = await this.nuxtApp.$api.call(endpoint, options)
-      console.log('✅ BaseService: Resultado recibido:', result)
       return result as T
     } catch (error: any) {
       const status = error?.status || error?.statusCode

@@ -1,5 +1,6 @@
 import { BaseService } from "~/services/base/BaseService"
 import type { ClientesResponse, AgenciesResponse } from "~/types/clientes/delivery/common"
+import type { UsuarioDatosFacturacionResponse } from "~/types/clientes/delivery/usuarioDatosFacturacion"
 import type { HorarioResponse } from "~/types/clientes/delivery/horario"
 
 export class DeliveryService extends BaseService {
@@ -11,6 +12,17 @@ export class DeliveryService extends BaseService {
             return response
         } catch (error) {
             console.error('Error al obtener el delivery por consolidado id:', error)
+            throw error
+        }
+    }
+
+    static async getUsuarioDatosFacturacion(destino?: 'Lima' | 'Provincia'): Promise<UsuarioDatosFacturacionResponse> {
+        try {
+            const q = destino ? `?destino=${encodeURIComponent(destino)}` : ''
+            const response = await this.apiCall<UsuarioDatosFacturacionResponse>(`${this.baseUrl}/usuario-datos-facturacion${q}`)
+            return response
+        } catch (error) {
+            console.error('Error al obtener usuario_datos_facturacion:', error)
             throw error
         }
     }
