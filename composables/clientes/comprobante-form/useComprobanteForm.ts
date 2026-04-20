@@ -9,6 +9,8 @@ export type ComprobanteFormRegistroGuardado = {
     razon_social?: string | null
     ruc?: string | null
     domicilio_fiscal?: string | null
+    distrito_id?: number | null
+    distrito_nombre?: string | null
     nombre_completo?: string | null
     dni_carnet?: string | null
 }

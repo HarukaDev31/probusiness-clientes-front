@@ -66,6 +66,26 @@
                 class="w-full"
               />
             </UFormField>
+
+            <UFormField
+              label="Distrito"
+              required
+              :error="fieldErrors.distrito"
+              description="Distrito del domicilio fiscal (búsqueda por nombre)."
+            >
+              <UInputMenu
+                v-model="formData.distrito"
+                v-model:search-term="distritoSearchTerm"
+                :items="distritoItems"
+                ignore-filter
+                :loading="distritoSearchLoading"
+                placeholder="Ej. Miraflores, La Molina…"
+                :disabled="loading || loadingForm"
+                class="w-full"
+                icon="i-heroicons-map-pin"
+                @update:open="onDistritoMenuOpen"
+              />
+            </UFormField>
           </div>
 
           <!-- Datos para BOLETA -->
@@ -174,6 +194,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useComprobanteForm, type ComprobanteFormRegistroGuardado } from '~/composables/clientes/comprobante-form/useComprobanteForm'
+import { useLocation } from '~/composables/commons/useLocation'
 import { useModal } from '~/composables/commons/useModal'
 
 definePageMeta({
@@ -187,6 +208,7 @@ const contenedorId = Number(route.params.id)
 const { showError } = useModal()
 
 const { clientes, misRegistros, carga, loading: loadingForm, getClientes, storeForm } = useComprobanteForm()
+const { searchDistritosPaginated } = useLocation()
 
 const loading = ref(false)
 const showSuccessModal = ref(false)
@@ -202,6 +224,8 @@ const destinosEntrega = [
   { label: 'Provincia', value: 'Provincia' }
 ]
 
+type DistritoMenuItem = { label: string; value: number }
+
 const formData = reactive({
   importador: null as { label: string; value: string } | null,
   tipoComprobante: null as { label: string; value: string } | null,
@@ -210,9 +234,51 @@ const formData = reactive({
   ruc: '',
   razonSocial: '',
   domicilioFiscal: '',
+  distrito: null as DistritoMenuItem | null,
   // BOLETA
   nombreCompleto: '',
   dniCarnet: ''
+})
+
+const distritoSearchTerm = ref('')
+const distritoItems = ref<DistritoMenuItem[]>([])
+const distritoSearchLoading = ref(false)
+
+/** Sin `q` o con menos de 2 caracteres: API devuelve los primeros 30; con 2+ filtra por nombre. */
+async function loadDistritosForSearchTerm(term: string) {
+  if (formData.tipoComprobante?.value !== 'FACTURA') return
+  const q = String(term ?? '').trim()
+  distritoSearchLoading.value = true
+  try {
+    const { items } = await searchDistritosPaginated({
+      page: 1,
+      per_page: 30,
+      ...(q.length >= 2 ? { q } : {})
+    })
+    distritoItems.value = items
+  } catch (e) {
+    console.error('Error al buscar distritos:', e)
+    distritoItems.value = []
+  } finally {
+    distritoSearchLoading.value = false
+  }
+}
+
+function onDistritoMenuOpen(open: boolean) {
+  if (!open || formData.tipoComprobante?.value !== 'FACTURA') return
+  if (!distritoItems.value.length) {
+    void loadDistritosForSearchTerm(distritoSearchTerm.value)
+  }
+}
+
+let distritoSearchDebounce: ReturnType<typeof setTimeout> | null = null
+watch(distritoSearchTerm, (term) => {
+  if (formData.tipoComprobante?.value !== 'FACTURA') return
+  if (distritoSearchDebounce) clearTimeout(distritoSearchDebounce)
+  distritoSearchDebounce = setTimeout(() => {
+    distritoSearchDebounce = null
+    void loadDistritosForSearchTerm(String(term ?? ''))
+  }, 300)
 })
 
 type FieldKey =
@@ -222,6 +288,7 @@ type FieldKey =
   | 'ruc'
   | 'razonSocial'
   | 'domicilioFiscal'
+  | 'distrito'
   | 'nombreCompleto'
   | 'dniCarnet'
 
@@ -274,6 +341,9 @@ function validateClient(): boolean {
     } else if (dom.length > 2000) {
       fieldErrors.domicilioFiscal = 'El domicilio fiscal no puede superar 2000 caracteres.'
     }
+    if (formData.distrito?.value == null || Number.isNaN(Number(formData.distrito.value))) {
+      fieldErrors.distrito = 'Selecciona el distrito del domicilio fiscal.'
+    }
   } else if (tipo === 'BOLETA') {
     const nombre = formData.nombreCompleto.trim()
     const doc = formData.dniCarnet.trim()
@@ -302,6 +372,7 @@ function applyApiErrors(apiErrors: Record<string, string[] | string> | undefined
     ruc: 'ruc',
     razon_social: 'razonSocial',
     domicilio_fiscal: 'domicilioFiscal',
+    distrito_id: 'distrito',
     nombre_completo: 'nombreCompleto',
     dni_carnet: 'dniCarnet'
   }
@@ -319,7 +390,12 @@ const canSubmit = computed(() => {
   if (!formData.destinoEntrega?.value) return false
 
   if (formData.tipoComprobante.value === 'FACTURA') {
-    return !!(formData.ruc?.trim() && formData.razonSocial?.trim() && formData.domicilioFiscal?.trim())
+    return !!(
+      formData.ruc?.trim() &&
+      formData.razonSocial?.trim() &&
+      formData.domicilioFiscal?.trim() &&
+      formData.distrito?.value != null
+    )
   }
   if (formData.tipoComprobante.value === 'BOLETA') {
     return !!(formData.nombreCompleto?.trim() && formData.dniCarnet?.trim())
@@ -328,6 +404,8 @@ const canSubmit = computed(() => {
 })
 
 function applyRegistroGuardado(r: ComprobanteFormRegistroGuardado) {
+  distritoSearchTerm.value = ''
+  distritoItems.value = []
   formData.tipoComprobante =
     tiposComprobante.find((t) => t.value === r.tipo_comprobante) ?? null
   formData.destinoEntrega = r.destino_entrega
@@ -337,14 +415,25 @@ function applyRegistroGuardado(r: ComprobanteFormRegistroGuardado) {
     formData.ruc = r.ruc ?? ''
     formData.razonSocial = r.razon_social ?? ''
     formData.domicilioFiscal = r.domicilio_fiscal ?? ''
+    if (r.distrito_id != null && r.distrito_id !== undefined) {
+      const nombre = (r.distrito_nombre || '').trim()
+      formData.distrito = {
+        value: Number(r.distrito_id),
+        label: nombre || `Distrito #${r.distrito_id}`
+      }
+    } else {
+      formData.distrito = null
+    }
     formData.nombreCompleto = ''
     formData.dniCarnet = ''
+    void loadDistritosForSearchTerm('')
   } else if (r.tipo_comprobante === 'BOLETA') {
     formData.nombreCompleto = r.nombre_completo ?? ''
     formData.dniCarnet = r.dni_carnet ?? ''
     formData.ruc = ''
     formData.razonSocial = ''
     formData.domicilioFiscal = ''
+    formData.distrito = null
   }
 }
 
@@ -354,8 +443,11 @@ function clearCamposComprobante() {
   formData.ruc = ''
   formData.razonSocial = ''
   formData.domicilioFiscal = ''
+  formData.distrito = null
   formData.nombreCompleto = ''
   formData.dniCarnet = ''
+  distritoSearchTerm.value = ''
+  distritoItems.value = []
 }
 
 const isEditing = computed(() => {
@@ -376,13 +468,21 @@ watch(
 )
 watch(
   () => formData.tipoComprobante,
-  () => {
+  (t) => {
     clearFieldError('tipoComprobante')
     clearFieldError('ruc')
     clearFieldError('razonSocial')
     clearFieldError('domicilioFiscal')
+    clearFieldError('distrito')
     clearFieldError('nombreCompleto')
     clearFieldError('dniCarnet')
+    if (t?.value === 'FACTURA') {
+      void loadDistritosForSearchTerm(distritoSearchTerm.value)
+    } else {
+      formData.distrito = null
+      distritoSearchTerm.value = ''
+      distritoItems.value = []
+    }
   }
 )
 watch(
@@ -400,6 +500,10 @@ watch(
 watch(
   () => formData.domicilioFiscal,
   () => clearFieldError('domicilioFiscal')
+)
+watch(
+  () => formData.distrito,
+  () => clearFieldError('distrito')
 )
 watch(
   () => formData.nombreCompleto,
@@ -430,6 +534,7 @@ const handleSubmit = async () => {
       payload.ruc = onlyDigits(formData.ruc)
       payload.razon_social = formData.razonSocial.trim()
       payload.domicilio_fiscal = formData.domicilioFiscal.trim()
+      payload.distrito_id = formData.distrito!.value
     } else {
       payload.nombre_completo = formData.nombreCompleto.trim()
       payload.dni_carnet = formData.dniCarnet.trim()
