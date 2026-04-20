@@ -86,11 +86,28 @@ export const useLocation = () => {
             loadingDistritos.value = false
         }
     }
+
+    /**
+     * Distritos para autocomplete con paginación (Nuxt UI: cargar `page` al filtrar o al scroll).
+     */
+    const searchDistritosPaginated = async (opts: { q?: string; page?: number; per_page?: number }) => {
+        const res = await LocationService.searchDistritosPaginated(opts)
+        if (!res?.success) {
+            return { items: [] as { label: string; value: number }[], meta: null as typeof res.meta | null }
+        }
+        const items = (res.data || []).map((row) => ({
+            label: row.label,
+            value: row.value
+        }))
+        return { items, meta: res.meta }
+    }
+
     return {
         getDepartamentos,
         getProvincias,
         getAllProvincias,
         getDistritos,
+        searchDistritosPaginated,
         departamentos,
         provincias,
         distritos,
