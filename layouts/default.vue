@@ -159,6 +159,7 @@ const pageTitle = computed(() => {
   if (route.path.includes('/importaciones/trayecto/inspeccion/')) return 'Inspección de Trayecto'
 
   //Formulario entrega
+  if (route.path.match(/\/formulario-entrega\/[^/]+$/)) return 'Formulario de Entrega'
   if (route.path.includes('/formulario-entrega/provincia/')) return 'Formulario de Entrega Provincia'
   if (route.path.includes('/formulario-entrega/lima/')) return 'Formulario de Entrega Lima'
 
@@ -259,15 +260,15 @@ const sidebarCategories = computed(() => {
 
   // Una sola categoría que contiene todos los módulos padre (para que SidebarMenu los muestre como botones)
   return [
-    {
-      id: 'main',
-      name: 'Menú',
-      icon: null,
-      color: 'gray',
-      order: 0,
-      isVisible: true,
-      modules
-    } as SidebarCategory
+      {
+        id: 'main',
+        name: 'Menú',
+        icon: null,
+        color: 'gray',
+        order: 0,
+        isVisible: true,
+        modules
+      } as unknown as SidebarCategory
   ]
 })
 
