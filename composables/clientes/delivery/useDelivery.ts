@@ -41,6 +41,9 @@ export const useDelivery = () => {
     'delivery:usuarioDatosFetched',
     () => ({})
   )
+  const ultimoDestinoUsuario = useState<string | null>('delivery:ultimoDestinoUsuario', () => null)
+  const limaNotifyModalHandled = useState('delivery:limaNotifyModalHandled', () => false)
+  const loadingUsuarioDatos = useState('delivery:loadingUsuarioDatos', () => false)
 
   function resetConsolidadoCache () {
     clientes.value = []
@@ -52,8 +55,13 @@ export const useDelivery = () => {
     limaCatalogsReady.value = false
     provinciaFormBootstrapped.value = false
     limaFormBootstrapped.value = false
+    limaNotifyModalHandled.value = false
+    usuarioDatosFetched.value = {}
+    usuarioDatosByDestino.value = {}
+    ultimoDestinoUsuario.value = null
     fetchConsolidadoInflight = null
     fetchHorariosInflight.clear()
+    fetchUsuarioDatosInflight.clear()
   }
 
   const getDeliveryByConsolidadoId = async (id: number): Promise<ClientesResponse | undefined> => {
@@ -124,13 +132,25 @@ export const useDelivery = () => {
     return fetchAgenciesInflight
   }
 
+  const syncUltimoDestinoFromResponse = (response: UsuarioDatosFacturacionResponse) => {
+    if (response.ultimo_destino != null && String(response.ultimo_destino).trim() !== '') {
+      ultimoDestinoUsuario.value = response.ultimo_destino
+      return
+    }
+    const fromData = response.data?.destino
+    if (fromData != null && String(fromData).trim() !== '') {
+      ultimoDestinoUsuario.value = fromData
+    }
+  }
+
   const getUsuarioDatosFacturacion = async (
     destino: DestinoFacturacion
   ): Promise<UsuarioDatosFacturacionResponse> => {
-    if (usuarioDatosFetched.value[destino]) {
+    if (usuarioDatosFetched.value[destino] && ultimoDestinoUsuario.value != null) {
       return {
         success: true,
-        data: usuarioDatosByDestino.value[destino] ?? null
+        data: usuarioDatosByDestino.value[destino] ?? null,
+        ultimo_destino: ultimoDestinoUsuario.value
       }
     }
 
@@ -139,11 +159,13 @@ export const useDelivery = () => {
       return inflight
     }
 
+    loadingUsuarioDatos.value = true
     const promise = (async () => {
       try {
         const response = await DeliveryService.getUsuarioDatosFacturacion(destino)
         usuarioDatosByDestino.value = { ...usuarioDatosByDestino.value, [destino]: response.data ?? null }
         usuarioDatosFetched.value = { ...usuarioDatosFetched.value, [destino]: true }
+        syncUltimoDestinoFromResponse(response)
         return response
       } catch (error) {
         console.error('Error al obtener usuario_datos_facturacion:', error)
@@ -151,6 +173,7 @@ export const useDelivery = () => {
         usuarioDatosFetched.value = { ...usuarioDatosFetched.value, [destino]: true }
         return { success: false, data: null, message: 'Error al cargar datos de facturación' }
       } finally {
+        loadingUsuarioDatos.value = false
         fetchUsuarioDatosInflight.delete(destino)
       }
     })()
@@ -188,6 +211,49 @@ export const useDelivery = () => {
 
     await getDistritos('1')
     limaCatalogsReady.value = true
+  }
+
+  /** Catálogos Lima + horarios + último destino (al entrar al formulario). */
+  const ensureLimaFormReady = async (consolidadoId: number) => {
+    await ensureLimaCatalogs(consolidadoId)
+    await Promise.all([
+      getHorariosDisponibles(consolidadoId),
+      getUsuarioDatosFacturacion('Lima')
+    ])
+  }
+
+  const horariosLoadedFor = (consolidadoId: number) =>
+    horariosConsolidadoId.value === consolidadoId && !loadingHorarios.value
+
+  /** Falta algo en store para Lima (hay que ir a red). */
+  const needsLimaInitialLoad = (consolidadoId: number) => {
+    if (!Number.isFinite(consolidadoId) || consolidadoId <= 0) return false
+    if (consolidadoIdLoaded.value !== consolidadoId) return true
+    if (!limaCatalogsReady.value) return true
+    if (!horariosLoadedFor(consolidadoId)) return true
+    return false
+  }
+
+  /** Carga en curso o datos aún no listos en store para mostrar el formulario Lima. */
+  const isLimaFormLoading = (consolidadoId: number) => {
+    if (!Number.isFinite(consolidadoId) || consolidadoId <= 0) return false
+    const { loadingDistritos } = useLocation()
+    if (loading.value) return true
+    if (loadingHorarios.value) return true
+    if (loadingUsuarioDatos.value) return true
+    if (loadingDistritos.value && !limaCatalogsReady.value) return true
+    if (consolidadoIdLoaded.value !== consolidadoId) return true
+    if (!horariosLoadedFor(consolidadoId)) return true
+    if (!limaCatalogsReady.value) return true
+    return false
+  }
+
+  const solicitarNotificacionHorariosLima = async () => {
+    const response = await DeliveryService.solicitarNotificacionHorariosLima()
+    if (response.success) {
+      ultimoDestinoUsuario.value = 'Lima'
+    }
+    return response
   }
 
   const saveDeliveryProvincia = async (data: any): Promise<any> => {
@@ -270,6 +336,15 @@ export const useDelivery = () => {
     getUsuarioDatosFacturacion,
     ensureProvinciaCatalogs,
     ensureLimaCatalogs,
+    ensureLimaFormReady,
+    solicitarNotificacionHorariosLima,
+    ultimoDestinoUsuario,
+    horariosConsolidadoId,
+    horariosLoadedFor,
+    needsLimaInitialLoad,
+    isLimaFormLoading,
+    loadingUsuarioDatos,
+    limaNotifyModalHandled,
     provinciaCatalogsReady,
     limaCatalogsReady,
     provinciaFormBootstrapped,

@@ -92,7 +92,7 @@ const route = useRoute()
 const router = useRouter()
 const consolidadoId = computed(() => String(route.params.id ?? ''))
 
-const { getDeliveryByConsolidadoId, ensureProvinciaCatalogs, ensureLimaCatalogs, carga } = useDelivery()
+const { getDeliveryByConsolidadoId, ensureProvinciaCatalogs, ensureLimaFormReady, carga } = useDelivery()
 
 const tabItems = [
   {
@@ -168,7 +168,7 @@ async function loadConsolidadoBase () {
 async function preloadTabCatalogs (tab: DestinoTab | undefined) {
   const id = Number(consolidadoId.value)
   if (!Number.isFinite(id) || id <= 0) return
-  if (tab === 'lima') await ensureLimaCatalogs(id)
+  if (tab === 'lima') await ensureLimaFormReady(id)
   if (tab === 'provincia') await ensureProvinciaCatalogs(id)
 }
 

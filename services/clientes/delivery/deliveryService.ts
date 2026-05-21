@@ -78,6 +78,18 @@ export class DeliveryService extends BaseService {
             throw error
         }
     }
+    static async solicitarNotificacionHorariosLima (): Promise<{ success: boolean; message?: string }> {
+        try {
+            return await this.apiCall<{ success: boolean; message?: string }>(
+                `${this.baseUrl}/solicitar-notificacion-horarios-lima`,
+                { method: 'POST' }
+            )
+        } catch (error) {
+            console.error('Error al solicitar notificación de horarios Lima:', error)
+            throw error
+        }
+    }
+
     static async getFormularioLimaByCotizacion(cotizacionUuid: string): Promise<any> {
         try {
             const response = await this.apiCall<any>(`${this.baseUrl}/formulario-lima/${cotizacionUuid}`)

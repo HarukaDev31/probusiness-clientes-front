@@ -90,7 +90,17 @@
 
       <!-- Form Container -->
       <UCard class="max-w-4xl mx-auto">
-        <form @submit.prevent="handleSubmit">
+        <div
+          v-if="isLoadingFormData"
+          class="flex flex-col items-center justify-center gap-4 py-16"
+        >
+          <div class="h-12 w-12 animate-spin rounded-full border-b-2 border-primary-500" />
+          <p class="text-sm text-gray-600 dark:text-gray-300">
+            Cargando datos del formulario...
+          </p>
+        </div>
+
+        <form v-else @submit.prevent="handleSubmit">
 
           <!-- Paso 1: Importación -->
           <div v-if="currentStep === 1" class="space-y-6">
@@ -491,17 +501,22 @@ const props = withDefaults(
   { embedded: false }
 )
 
-const { showError } = useModal()
+const { showError, showConfirmation, showSuccess } = useModal()
 const {
   clientes,
   carga,
   saveDeliveryLima,
-  getHorariosDisponibles,
   horarios,
   loadingHorarios,
   getFormularioLimaByCotizacion,
   getUsuarioDatosFacturacion,
-  ensureLimaCatalogs,
+  ensureLimaFormReady,
+  solicitarNotificacionHorariosLima,
+  ultimoDestinoUsuario,
+  horariosLoadedFor,
+  needsLimaInitialLoad,
+  isLimaFormLoading,
+  limaNotifyModalHandled,
   limaFormBootstrapped
 } = useDelivery()
 const { distritos, getDistritos } = useLocation()
@@ -514,6 +529,8 @@ const { saveFormState, loadFormState, clearFormState } = useFormPersistence('lim
 const currentStep = ref(1)
 const loading = ref(false)
 const showSuccessModal = ref(false)
+
+const isLoadingFormData = computed(() => isLimaFormLoading(Number(consolidadoId)))
 
 const steps = [
   { id: 1, title: 'Importación' },
@@ -708,11 +725,6 @@ const reservationSummary = computed(() => {
 // ─── Navegación ───────────────────────────────────────────────────────────────
 const nextStep = async () => {
   if (currentStep.value < 4 && canProceedToNextStep.value) {
-    if (currentStep.value === 3) {
-      try {
-        await getHorariosDisponibles(Number(consolidadoId))
-      } catch { /* continuar aunque haya error */ }
-    }
     currentStep.value++
     showSuccessModal.value = false
     saveFormState(formData, currentStep.value)
@@ -847,9 +859,6 @@ const handleImportadorChange = async (newValue: any) => {
 
     if (formularioData.data.currentStep) {
       currentStep.value = formularioData.data.currentStep
-      if (formularioData.data.currentStep === 4) {
-        try { await getHorariosDisponibles(Number(consolidadoId)) } catch { /* continuar */ }
-      }
     }
 
     saveFormState(formData, currentStep.value)
@@ -891,63 +900,91 @@ const resetForm = () => {
 const handleNewReservation = () => { resetForm(); navigateTo('/') }
 const handleGoToHome = () => { navigateTo('/') }
 
-// ─── Cargar horarios al llegar al paso 4 ─────────────────────────────────────
-watch(() => currentStep.value, async (newStep) => {
-  if (newStep === 4 && horarios.value.length === 0 && !loadingHorarios.value) {
-    try { await getHorariosDisponibles(Number(consolidadoId)) } catch { /* continuar */ }
-  }
-})
+function isUltimoDestinoProvincia () {
+  const d = String(ultimoDestinoUsuario.value ?? '').trim()
+  return d.toLowerCase() === 'provincia'
+}
 
-// ─── Inicialización ───────────────────────────────────────────────────────────
-onMounted(async () => {
-  showSuccessModal.value = false
+async function maybeOfferLimaHorariosNotification () {
+  if (limaNotifyModalHandled.value) return
+
   const id = Number(consolidadoId)
+  if (!Number.isFinite(id) || id <= 0) return
+  if (!horariosLoadedFor(id)) return
+  if ((horarios.value?.length ?? 0) > 0) return
 
-  if (limaFormBootstrapped.value) {
-    await ensureLimaCatalogs(id)
-    formData.clienteCorreo = formData.clienteCorreo?.trim() || userData.value?.email || ''
-    const savedState = loadFormState()
-    if (savedState) {
-      Object.assign(formData, savedState.formData)
-      const tv = formData.tipoComprobante as any
-      if (tv?.value && typeof tv.value === 'string') {
-        const lower = tv.value.toLowerCase()
-        if (lower === 'boleta' || lower === 'factura') {
-          formData.tipoComprobante = lower === 'factura'
-            ? { label: 'FACTURA', value: 'factura' }
-            : { label: 'BOLETA', value: 'boleta' }
+  if (!isUltimoDestinoProvincia()) {
+    try {
+      await getUsuarioDatosFacturacion('Lima')
+    } catch {
+      return
+    }
+    if (!isUltimoDestinoProvincia()) return
+  }
+
+  limaNotifyModalHandled.value = true
+
+  showConfirmation(
+    'Horarios no disponibles',
+    'Actualmente no se encuentran disponibles horarios para entrega a Lima. ¿Quieres que te notifiquemos cuando estén disponibles?',
+    async () => {
+      try {
+        const res = await solicitarNotificacionHorariosLima()
+        if (res.success) {
+          showSuccess('Solicitud registrada', res.message ?? 'Te avisaremos cuando haya horarios disponibles.')
+        } else {
+          showError('No se pudo registrar', res.message ?? 'Intenta nuevamente más tarde.')
         }
+      } catch (e: any) {
+        showError('Error', e?.message ?? 'No se pudo registrar tu solicitud.')
       }
-      currentStep.value = savedState.currentStep
-      if (savedState.currentStep >= 4) {
-        try { await getHorariosDisponibles(id) } catch { /* continuar */ }
-      }
-    }
-    if (!formData.nombreCompleto?.trim()) formData.nombreCompleto = userData.value?.name || ''
-    if (!formData.dni?.trim()) formData.dni = userData.value?.dni || ''
-    return
-  }
+    },
+    undefined,
+    { persistent: true }
+  )
+}
 
-  await ensureLimaCatalogs(id)
-  formData.clienteCorreo = userData.value?.email || ''
+/** Modal de aviso en cualquier paso cuando ya hay horarios cargados y aplican las condiciones. */
+watch(
+  [horarios, loadingHorarios, ultimoDestinoUsuario, currentStep],
+  () => {
+    void maybeOfferLimaHorariosNotification()
+  },
+  { flush: 'post' }
+)
 
+function applySavedFormState () {
   const savedState = loadFormState()
-  if (savedState) {
-    Object.assign(formData, savedState.formData)
-    const tv = formData.tipoComprobante as any
-    if (tv?.value && typeof tv.value === 'string') {
-      const lower = tv.value.toLowerCase()
-      if (lower === 'boleta' || lower === 'factura') {
-        formData.tipoComprobante = lower === 'factura'
-          ? { label: 'FACTURA', value: 'factura' }
-          : { label: 'BOLETA', value: 'boleta' }
-      }
-    }
-    currentStep.value = savedState.currentStep
-    if (savedState.currentStep >= 4) {
-      try { await getHorariosDisponibles(id) } catch { /* continuar */ }
+  if (!savedState) return null
+  Object.assign(formData, savedState.formData)
+  const tv = formData.tipoComprobante as any
+  if (tv?.value && typeof tv.value === 'string') {
+    const lower = tv.value.toLowerCase()
+    if (lower === 'boleta' || lower === 'factura') {
+      formData.tipoComprobante = lower === 'factura'
+        ? { label: 'FACTURA', value: 'factura' }
+        : { label: 'BOLETA', value: 'boleta' }
     }
   }
+  currentStep.value = savedState.currentStep
+  return savedState
+}
+
+function applySessionDefaultsLima (hadSavedState: boolean) {
+  if (formData.tipoComprobante?.value === 'boleta') {
+    if (!formData.clienteDni?.trim()) formData.clienteDni = userData.value?.dni || ''
+    if (!formData.clienteNombre?.trim()) formData.clienteNombre = userData.value?.name || ''
+  }
+  if (!formData.clienteCorreo?.trim()) formData.clienteCorreo = userData.value?.email || ''
+  if (!formData.nombreCompleto?.trim()) formData.nombreCompleto = userData.value?.name || ''
+  if (!formData.dni?.trim()) formData.dni = userData.value?.dni || ''
+}
+
+async function initLimaFormData (id: number) {
+  await ensureLimaFormReady(id)
+  formData.clienteCorreo = formData.clienteCorreo?.trim() || userData.value?.email || ''
+
+  const savedState = applySavedFormState()
 
   try {
     const res = await getUsuarioDatosFacturacion('Lima')
@@ -961,15 +998,26 @@ onMounted(async () => {
     }
   } catch { /* ignorar — no es crítico */ }
 
-  if (formData.tipoComprobante?.value === 'boleta') {
-    if (!formData.clienteDni?.trim()) formData.clienteDni = userData.value?.dni || ''
-    if (!formData.clienteNombre?.trim()) formData.clienteNombre = userData.value?.name || ''
-  }
-  if (!formData.clienteCorreo?.trim()) formData.clienteCorreo = userData.value?.email || ''
-  if (!formData.nombreCompleto?.trim()) formData.nombreCompleto = userData.value?.name || ''
-  if (!formData.dni?.trim()) formData.dni = userData.value?.dni || ''
-
+  applySessionDefaultsLima(Boolean(savedState))
   limaFormBootstrapped.value = true
+}
+
+// ─── Inicialización ───────────────────────────────────────────────────────────
+onMounted(async () => {
+  showSuccessModal.value = false
+  const id = Number(consolidadoId)
+
+  if (limaNotifyModalHandled.value && ultimoDestinoUsuario.value == null) {
+    limaNotifyModalHandled.value = false
+  }
+
+  const runInit = () => initLimaFormData(id)
+
+  if (needsLimaInitialLoad(id)) {
+    await withSpinner(runInit, 'Cargando datos...')
+  } else {
+    await runInit()
+  }
 })
 </script>
 

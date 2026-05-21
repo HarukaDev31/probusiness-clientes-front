@@ -11,5 +11,8 @@ export interface UsuarioDatosFacturacionDto {
 export interface UsuarioDatosFacturacionResponse {
   success: boolean
   data: UsuarioDatosFacturacionDto | null
+  /** Destino del último registro (mayor id) del usuario, sin filtrar por query */
+  ultimo_destino?: string | null
+  type_form?: number | null
   message?: string
 }
