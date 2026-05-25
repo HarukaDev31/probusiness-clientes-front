@@ -1,0 +1,593 @@
+<template>
+  <div :class="embedded ? '' : 'h-auto bg-gray-50 dark:bg-gray-900 py-8'">
+    <div :class="embedded ? '' : 'max-w-7xl mx-auto px-4'">
+      <div v-if="!embedded" class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          Consolidado #{{ carga }}
+        </h1>
+        <p class="text-gray-600 dark:text-gray-300">
+          Completa los datos para tu comprobante de pago.
+        </p>
+      </div>
+
+      <div v-else class="mb-6 max-w-2xl mx-auto rounded-xl border border-primary-200 bg-primary-50/70 px-5 py-4 text-center dark:border-primary-800 dark:bg-primary-950/40">
+        <p class="text-sm font-medium text-gray-900 dark:text-white">
+          Antes de continuar con la entrega, completa los datos de tu comprobante.
+        </p>
+        <p v-if="carga" class="mt-1 text-xs text-gray-600 dark:text-gray-400">
+          Consolidado #{{ carga }}
+        </p>
+      </div>
+
+      <UCard class="max-w-4xl mx-auto">
+        <form @submit.prevent="handleSubmit" class="space-y-6">
+          <UFormField label="Selecciona el nombre del importador:" required :error="fieldErrors.importador">
+            <USelectMenu
+              v-model="formData.importador"
+              :items="clientes"
+              placeholder="Selecciona el importador"
+              :disabled="loading || loadingForm"
+              class="w-full"
+            />
+          </UFormField>
+          <h3 class="text-base font-semibold text-gray-900 dark:text-white">Datos de facturación</h3>
+
+          <div v-if="formData.tipoComprobante?.value === 'FACTURA'" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <UFormField label="Tipo de comprobante:" required :error="fieldErrors.tipoComprobante">
+                <USelectMenu
+                  v-model="formData.tipoComprobante"
+                  :items="tiposComprobante"
+                  placeholder="Selecciona tipo de comprobante"
+                  :disabled="loading || loadingForm"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField label="RUC:" required :error="fieldErrors.ruc">
+                <UInput
+                  v-model="formData.ruc"
+                  placeholder="Ingrese RUC (11 dígitos)"
+                  maxlength="15"
+                  :disabled="loading || loadingForm"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField label="Razón social:" required :error="fieldErrors.razonSocial">
+                <UInput
+                  v-model="formData.razonSocial"
+                  placeholder="Ingrese razón social"
+                  :disabled="loading || loadingForm"
+                  class="w-full"
+                />
+              </UFormField>
+            </div>
+            <UFormField label="Domicilio fiscal:" required :error="fieldErrors.domicilioFiscal">
+              <UInput
+                v-model="formData.domicilioFiscal"
+                placeholder="Ingrese domicilio fiscal"
+                :disabled="loading || loadingForm"
+                class="w-full"
+              />
+            </UFormField>
+
+            <UFormField
+              label="Distrito"
+              required
+              :error="fieldErrors.distrito"
+              description="Distrito del domicilio fiscal (búsqueda por nombre)."
+            >
+              <UInputMenu
+                v-model="formData.distrito"
+                v-model:search-term="distritoSearchTerm"
+                :items="distritoItems"
+                ignore-filter
+                :loading="distritoSearchLoading"
+                placeholder="Ej. Miraflores, La Molina…"
+                :disabled="loading || loadingForm"
+                class="w-full"
+                icon="i-heroicons-map-pin"
+                @update:open="onDistritoMenuOpen"
+              />
+            </UFormField>
+          </div>
+
+          <div v-else-if="formData.tipoComprobante?.value === 'BOLETA'" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <UFormField label="Tipo de comprobante:" required :error="fieldErrors.tipoComprobante">
+                <USelectMenu
+                  v-model="formData.tipoComprobante"
+                  :items="tiposComprobante"
+                  placeholder="Selecciona tipo de comprobante"
+                  :disabled="loading || loadingForm"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField label="DNI / Carnet de extranjería:" required :error="fieldErrors.dniCarnet">
+                <UInput
+                  v-model="formData.dniCarnet"
+                  placeholder="DNI: 8 dígitos. Carné: 9–20 caracteres"
+                  maxlength="20"
+                  :disabled="loading || loadingForm"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField label="Nombre completo:" required :error="fieldErrors.nombreCompleto">
+                <UInput
+                  v-model="formData.nombreCompleto"
+                  placeholder="Ingrese nombre completo"
+                  :disabled="loading || loadingForm"
+                  class="w-full"
+                />
+              </UFormField>
+            </div>
+          </div>
+
+          <div v-else>
+            <UFormField label="Tipo de comprobante:" required :error="fieldErrors.tipoComprobante">
+              <USelectMenu
+                v-model="formData.tipoComprobante"
+                :items="tiposComprobante"
+                placeholder="Selecciona tipo de comprobante"
+                :disabled="loading || loadingForm"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
+
+          <h3 class="text-base font-semibold text-gray-900 dark:text-white">Datos logísticos</h3>
+          <UFormField label="Selecciona el destino de entrega:" required :error="fieldErrors.destinoEntrega">
+            <USelectMenu
+              v-model="formData.destinoEntrega"
+              :items="destinosEntrega"
+              placeholder="Selecciona destino de entrega"
+              :disabled="loading || loadingForm"
+              class="w-full"
+            />
+          </UFormField>
+
+          <div class="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
+            <UButton
+              type="submit"
+              color="primary"
+              size="lg"
+              :disabled="!canSubmit || loading || loadingForm"
+              :loading="loading"
+            >
+              {{ isEditing ? 'Actualizar formulario' : 'Enviar formulario' }}
+            </UButton>
+          </div>
+        </form>
+      </UCard>
+    </div>
+
+    <div
+      v-if="showSuccessModal"
+      class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
+      style="background-color: rgba(0,0,0,0.45);"
+    >
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-sm w-full mx-4 p-8 text-center space-y-5">
+        <div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto">
+          <UIcon name="i-heroicons-check" class="w-8 h-8 text-white" />
+        </div>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
+          {{ successWasUpdate ? '¡Cambios guardados!' : '¡Registro exitoso!' }}
+        </h2>
+        <p class="text-gray-600 dark:text-gray-300 text-sm">
+          <template v-if="successWasUpdate">
+            Los datos de tu comprobante se actualizaron correctamente.
+          </template>
+          <template v-else>
+            Tu formulario de comprobante fue enviado correctamente.<br>
+            Recibirás una confirmación por correo y WhatsApp.
+          </template>
+        </p>
+        <UButton
+          color="primary"
+          size="lg"
+          class="w-full justify-center"
+          @click="onSuccessPrimaryAction"
+        >
+          {{ returnMode === 'entrega' ? 'Continuar con formulario de entrega' : 'Ir a mi Perfil' }}
+        </UButton>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, reactive, onMounted, watch } from 'vue'
+import { useComprobanteForm, type ComprobanteFormRegistroGuardado } from '~/composables/clientes/comprobante-form/useComprobanteForm'
+import { useLocation } from '~/composables/commons/useLocation'
+import { useModal } from '~/composables/commons/useModal'
+
+const props = withDefaults(
+  defineProps<{
+    contenedorId: number
+    embedded?: boolean
+    /** Preselecciona Lima o Provincia en destino de entrega */
+    initialDestinoEntrega?: 'Lima' | 'Provincia' | null
+    /** Tras éxito: volver a entrega o ir al perfil */
+    returnMode?: 'entrega' | 'profile'
+  }>(),
+  {
+    embedded: false,
+    initialDestinoEntrega: null,
+    returnMode: 'profile'
+  }
+)
+
+const emit = defineEmits<{
+  completed: [payload?: { destinoEntrega?: 'Lima' | 'Provincia' | null }]
+}>()
+
+const { showError } = useModal()
+const { clientes, misRegistros, carga, loading: loadingForm, getClientes, storeForm } = useComprobanteForm()
+const { searchDistritosPaginated } = useLocation()
+
+const loading = ref(false)
+const showSuccessModal = ref(false)
+const successWasUpdate = ref(false)
+
+const tiposComprobante = [
+  { label: 'BOLETA', value: 'BOLETA' },
+  { label: 'FACTURA', value: 'FACTURA' }
+]
+
+const destinosEntrega = [
+  { label: 'Lima', value: 'Lima' },
+  { label: 'Provincia', value: 'Provincia' }
+]
+
+type DistritoMenuItem = { label: string; value: number }
+
+const formData = reactive({
+  importador: null as { label: string; value: string } | null,
+  tipoComprobante: null as { label: string; value: string } | null,
+  destinoEntrega: null as { label: string; value: string } | null,
+  ruc: '',
+  razonSocial: '',
+  domicilioFiscal: '',
+  distrito: null as DistritoMenuItem | null,
+  nombreCompleto: '',
+  dniCarnet: ''
+})
+
+const distritoSearchTerm = ref('')
+const distritoItems = ref<DistritoMenuItem[]>([])
+const distritoSearchLoading = ref(false)
+
+async function loadDistritosForSearchTerm (term: string) {
+  if (formData.tipoComprobante?.value !== 'FACTURA') return
+  const q = String(term ?? '').trim()
+  distritoSearchLoading.value = true
+  try {
+    const { items } = await searchDistritosPaginated({
+      page: 1,
+      per_page: 30,
+      ...(q.length >= 2 ? { q } : {})
+    })
+    distritoItems.value = items
+  } catch (e) {
+    console.error('Error al buscar distritos:', e)
+    distritoItems.value = []
+  } finally {
+    distritoSearchLoading.value = false
+  }
+}
+
+function onDistritoMenuOpen (open: boolean) {
+  if (!open || formData.tipoComprobante?.value !== 'FACTURA') return
+  if (!distritoItems.value.length) {
+    void loadDistritosForSearchTerm(distritoSearchTerm.value)
+  }
+}
+
+let distritoSearchDebounce: ReturnType<typeof setTimeout> | null = null
+watch(distritoSearchTerm, (term) => {
+  if (formData.tipoComprobante?.value !== 'FACTURA') return
+  if (distritoSearchDebounce) clearTimeout(distritoSearchDebounce)
+  distritoSearchDebounce = setTimeout(() => {
+    distritoSearchDebounce = null
+    void loadDistritosForSearchTerm(String(term ?? ''))
+  }, 300)
+})
+
+type FieldKey =
+  | 'importador'
+  | 'tipoComprobante'
+  | 'destinoEntrega'
+  | 'ruc'
+  | 'razonSocial'
+  | 'domicilioFiscal'
+  | 'distrito'
+  | 'nombreCompleto'
+  | 'dniCarnet'
+
+const fieldErrors = reactive<Partial<Record<FieldKey, string>>>({})
+const DNI_CARNET_RE = /^(?:\d{8}|[A-Za-z0-9-]{9,20})$/
+
+function onlyDigits (s: string): string {
+  return s.replace(/\D/g, '')
+}
+
+function clearFieldError (key: FieldKey) {
+  delete fieldErrors[key]
+}
+
+function clearAllFieldErrors () {
+  ;(Object.keys(fieldErrors) as FieldKey[]).forEach((k) => delete fieldErrors[k])
+}
+
+function validateClient (): boolean {
+  clearAllFieldErrors()
+  const tipo = formData.tipoComprobante?.value
+
+  if (!formData.importador?.value) {
+    fieldErrors.importador = 'Selecciona el importador.'
+  }
+  if (!tipo) {
+    fieldErrors.tipoComprobante = 'Selecciona el tipo de comprobante.'
+  }
+  if (!formData.destinoEntrega?.value) {
+    fieldErrors.destinoEntrega = 'Selecciona el destino de entrega (Lima o Provincia).'
+  } else if (!['Lima', 'Provincia'].includes(formData.destinoEntrega.value)) {
+    fieldErrors.destinoEntrega = 'El destino debe ser Lima o Provincia.'
+  }
+
+  if (tipo === 'FACTURA') {
+    const rucDigits = onlyDigits(formData.ruc)
+    const rs = formData.razonSocial.trim()
+    const dom = formData.domicilioFiscal.trim()
+    if (rucDigits.length !== 11) {
+      fieldErrors.ruc = 'El RUC debe tener exactamente 11 dígitos.'
+    }
+    if (rs.length < 3) {
+      fieldErrors.razonSocial = 'La razón social debe tener al menos 3 caracteres.'
+    } else if (rs.length > 255) {
+      fieldErrors.razonSocial = 'La razón social no puede superar 255 caracteres.'
+    }
+    if (dom.length < 10) {
+      fieldErrors.domicilioFiscal = 'El domicilio fiscal debe tener al menos 10 caracteres.'
+    } else if (dom.length > 2000) {
+      fieldErrors.domicilioFiscal = 'El domicilio fiscal no puede superar 2000 caracteres.'
+    }
+    if (formData.distrito?.value == null || Number.isNaN(Number(formData.distrito.value))) {
+      fieldErrors.distrito = 'Selecciona el distrito del domicilio fiscal.'
+    }
+  } else if (tipo === 'BOLETA') {
+    const nombre = formData.nombreCompleto.trim()
+    const doc = formData.dniCarnet.trim()
+    if (nombre.length < 3) {
+      fieldErrors.nombreCompleto = 'El nombre completo debe tener al menos 3 caracteres.'
+    } else if (nombre.length > 255) {
+      fieldErrors.nombreCompleto = 'El nombre completo no puede superar 255 caracteres.'
+    }
+    if (!doc) {
+      fieldErrors.dniCarnet = 'Ingresa DNI o carné de extranjería.'
+    } else if (!DNI_CARNET_RE.test(doc)) {
+      fieldErrors.dniCarnet =
+        'DNI: 8 dígitos. Carné: 9 a 20 caracteres (letras, números o guiones).'
+    }
+  }
+
+  return Object.keys(fieldErrors).length === 0
+}
+
+function applyApiErrors (apiErrors: Record<string, string[] | string> | undefined) {
+  if (!apiErrors || typeof apiErrors !== 'object') return
+  const keyMap: Record<string, FieldKey> = {
+    importador: 'importador',
+    tipo_comprobante: 'tipoComprobante',
+    destino_entrega: 'destinoEntrega',
+    ruc: 'ruc',
+    razon_social: 'razonSocial',
+    domicilio_fiscal: 'domicilioFiscal',
+    distrito_id: 'distrito',
+    nombre_completo: 'nombreCompleto',
+    dni_carnet: 'dniCarnet'
+  }
+  for (const [k, v] of Object.entries(apiErrors)) {
+    const frontKey = keyMap[k]
+    if (!frontKey) continue
+    const msg = Array.isArray(v) ? v[0] : v
+    if (msg) fieldErrors[frontKey] = String(msg)
+  }
+}
+
+const canSubmit = computed(() => {
+  if (!formData.importador?.value) return false
+  if (!formData.tipoComprobante?.value) return false
+  if (!formData.destinoEntrega?.value) return false
+
+  if (formData.tipoComprobante.value === 'FACTURA') {
+    return !!(
+      formData.ruc?.trim() &&
+      formData.razonSocial?.trim() &&
+      formData.domicilioFiscal?.trim() &&
+      formData.distrito?.value != null
+    )
+  }
+  if (formData.tipoComprobante.value === 'BOLETA') {
+    return !!(formData.nombreCompleto?.trim() && formData.dniCarnet?.trim())
+  }
+  return false
+})
+
+function applyRegistroGuardado (r: ComprobanteFormRegistroGuardado) {
+  distritoSearchTerm.value = ''
+  distritoItems.value = []
+  formData.tipoComprobante =
+    tiposComprobante.find((t) => t.value === r.tipo_comprobante) ?? null
+  formData.destinoEntrega = r.destino_entrega
+    ? destinosEntrega.find((d) => d.value === r.destino_entrega) ?? null
+    : null
+  if (r.tipo_comprobante === 'FACTURA') {
+    formData.ruc = r.ruc ?? ''
+    formData.razonSocial = r.razon_social ?? ''
+    formData.domicilioFiscal = r.domicilio_fiscal ?? ''
+    if (r.distrito_id != null && r.distrito_id !== undefined) {
+      const nombre = (r.distrito_nombre || '').trim()
+      formData.distrito = {
+        value: Number(r.distrito_id),
+        label: nombre || `Distrito #${r.distrito_id}`
+      }
+    } else {
+      formData.distrito = null
+    }
+    formData.nombreCompleto = ''
+    formData.dniCarnet = ''
+    void loadDistritosForSearchTerm('')
+  } else if (r.tipo_comprobante === 'BOLETA') {
+    formData.nombreCompleto = r.nombre_completo ?? ''
+    formData.dniCarnet = r.dni_carnet ?? ''
+    formData.ruc = ''
+    formData.razonSocial = ''
+    formData.domicilioFiscal = ''
+    formData.distrito = null
+  }
+}
+
+function clearCamposComprobante () {
+  formData.tipoComprobante = null
+  formData.destinoEntrega = null
+  formData.ruc = ''
+  formData.razonSocial = ''
+  formData.domicilioFiscal = ''
+  formData.distrito = null
+  formData.nombreCompleto = ''
+  formData.dniCarnet = ''
+  distritoSearchTerm.value = ''
+  distritoItems.value = []
+}
+
+function applyInitialDestinoEntrega () {
+  if (!props.initialDestinoEntrega) return
+  const found = destinosEntrega.find((d) => d.value === props.initialDestinoEntrega)
+  if (found) formData.destinoEntrega = found
+}
+
+const isEditing = computed(() => {
+  const uuid = formData.importador?.value
+  if (!uuid) return false
+  return misRegistros.value.some((r) => r.importador_uuid === uuid)
+})
+
+watch(
+  () => formData.importador,
+  (imp) => {
+    clearFieldError('importador')
+    if (!imp?.value) return
+    const r = misRegistros.value.find((x) => x.importador_uuid === imp.value)
+    if (r) applyRegistroGuardado(r)
+    else clearCamposComprobante()
+  }
+)
+watch(
+  () => formData.tipoComprobante,
+  (t) => {
+    clearFieldError('tipoComprobante')
+    clearFieldError('ruc')
+    clearFieldError('razonSocial')
+    clearFieldError('domicilioFiscal')
+    clearFieldError('distrito')
+    clearFieldError('nombreCompleto')
+    clearFieldError('dniCarnet')
+    if (t?.value === 'FACTURA') {
+      void loadDistritosForSearchTerm(distritoSearchTerm.value)
+    } else {
+      formData.distrito = null
+      distritoSearchTerm.value = ''
+      distritoItems.value = []
+    }
+  }
+)
+watch(() => formData.destinoEntrega, () => clearFieldError('destinoEntrega'))
+watch(() => formData.ruc, () => clearFieldError('ruc'))
+watch(() => formData.razonSocial, () => clearFieldError('razonSocial'))
+watch(() => formData.domicilioFiscal, () => clearFieldError('domicilioFiscal'))
+watch(() => formData.distrito, () => clearFieldError('distrito'))
+watch(() => formData.nombreCompleto, () => clearFieldError('nombreCompleto'))
+watch(() => formData.dniCarnet, () => clearFieldError('dniCarnet'))
+
+function onSuccessPrimaryAction () {
+  showSuccessModal.value = false
+  if (props.returnMode === 'entrega') {
+    const destino = formData.destinoEntrega?.value as 'Lima' | 'Provincia' | undefined
+    emit('completed', { destinoEntrega: destino ?? null })
+    return
+  }
+  navigateTo('/')
+}
+
+const handleSubmit = async () => {
+  if (!validateClient()) {
+    showError('Revisa el formulario', 'Corrige los campos indicados antes de enviar.')
+    return
+  }
+  if (!canSubmit.value) return
+
+  loading.value = true
+  try {
+    const tipo = formData.tipoComprobante!.value
+    const payload: Record<string, any> = {
+      importador: formData.importador!.value,
+      tipo_comprobante: tipo,
+      destino_entrega: formData.destinoEntrega!.value
+    }
+
+    if (tipo === 'FACTURA') {
+      payload.ruc = onlyDigits(formData.ruc)
+      payload.razon_social = formData.razonSocial.trim()
+      payload.domicilio_fiscal = formData.domicilioFiscal.trim()
+      payload.distrito_id = formData.distrito!.value
+    } else {
+      payload.nombre_completo = formData.nombreCompleto.trim()
+      payload.dni_carnet = formData.dniCarnet.trim()
+    }
+
+    const response = await storeForm(props.contenedorId, payload)
+    if (response?.success) {
+      clearAllFieldErrors()
+      successWasUpdate.value = isEditing.value
+      showSuccessModal.value = true
+      await getClientes(props.contenedorId)
+      const uuid = formData.importador?.value
+      if (uuid) {
+        const r = misRegistros.value.find((x) => x.importador_uuid === uuid)
+        if (r) applyRegistroGuardado(r)
+      }
+    } else {
+      clearAllFieldErrors()
+      applyApiErrors(response?.errors)
+      const hasFieldErrors = Object.keys(fieldErrors).length > 0
+      showError(
+        'Error al enviar',
+        hasFieldErrors ? 'Revisa los campos marcados.' : (response?.error || 'No se pudo guardar el formulario')
+      )
+    }
+  } catch (err: any) {
+    showError('Error al enviar', err?.message || 'Error inesperado')
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(async () => {
+  applyInitialDestinoEntrega()
+  await getClientes(props.contenedorId)
+  if (misRegistros.value.length === 1) {
+    const r = misRegistros.value[0]
+    if (r.importador_uuid) {
+      const item = clientes.value.find((c) => c.value === r.importador_uuid)
+      if (item) formData.importador = item
+    }
+  }
+  if (!formData.destinoEntrega?.value) {
+    applyInitialDestinoEntrega()
+  }
+})
+</script>

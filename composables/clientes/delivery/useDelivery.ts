@@ -11,6 +11,7 @@ let fetchConsolidadoInflight: Promise<ClientesResponse | undefined> | null = nul
 let fetchAgenciesInflight: Promise<AgenciesResponse | undefined> | null = null
 const fetchHorariosInflight = new Map<number, Promise<HorarioResponse | undefined>>()
 const fetchUsuarioDatosInflight = new Map<DestinoFacturacion, Promise<UsuarioDatosFacturacionResponse>>()
+let fetchHasDatosFacturacionInflight: Promise<boolean> | null = null
 
 /**
  * Estado compartido (useState) para formularios de entrega Lima/Provincia.
@@ -44,6 +45,7 @@ export const useDelivery = () => {
   const ultimoDestinoUsuario = useState<string | null>('delivery:ultimoDestinoUsuario', () => null)
   const limaNotifyModalHandled = useState('delivery:limaNotifyModalHandled', () => false)
   const loadingUsuarioDatos = useState('delivery:loadingUsuarioDatos', () => false)
+  const hasDatosFacturacion = useState<boolean | null>('delivery:hasDatosFacturacion', () => null)
 
   function resetConsolidadoCache () {
     clientes.value = []
@@ -59,9 +61,51 @@ export const useDelivery = () => {
     usuarioDatosFetched.value = {}
     usuarioDatosByDestino.value = {}
     ultimoDestinoUsuario.value = null
+    hasDatosFacturacion.value = null
     fetchConsolidadoInflight = null
     fetchHorariosInflight.clear()
     fetchUsuarioDatosInflight.clear()
+    fetchHasDatosFacturacionInflight = null
+  }
+
+  function invalidateDatosFacturacionCache () {
+    hasDatosFacturacion.value = null
+    usuarioDatosFetched.value = {}
+    usuarioDatosByDestino.value = {}
+    ultimoDestinoUsuario.value = null
+    fetchUsuarioDatosInflight.clear()
+    fetchHasDatosFacturacionInflight = null
+  }
+
+  /** ¿El usuario ya tiene filas en usuario_datos_facturacion? */
+  const checkHasDatosFacturacion = async (): Promise<boolean> => {
+    if (hasDatosFacturacion.value !== null) {
+      return hasDatosFacturacion.value
+    }
+
+    if (fetchHasDatosFacturacionInflight) {
+      return fetchHasDatosFacturacionInflight
+    }
+
+    loadingUsuarioDatos.value = true
+    fetchHasDatosFacturacionInflight = (async () => {
+      try {
+        const response = await DeliveryService.getUsuarioDatosFacturacion()
+        syncUltimoDestinoFromResponse(response)
+        const has = !!(response.data || response.ultimo_destino)
+        hasDatosFacturacion.value = has
+        return has
+      } catch (error) {
+        console.error('Error al verificar datos de facturación:', error)
+        hasDatosFacturacion.value = false
+        return false
+      } finally {
+        loadingUsuarioDatos.value = false
+        fetchHasDatosFacturacionInflight = null
+      }
+    })()
+
+    return fetchHasDatosFacturacionInflight
   }
 
   const getDeliveryByConsolidadoId = async (id: number): Promise<ClientesResponse | undefined> => {
@@ -348,6 +392,9 @@ export const useDelivery = () => {
     provinciaCatalogsReady,
     limaCatalogsReady,
     provinciaFormBootstrapped,
-    limaFormBootstrapped
+    limaFormBootstrapped,
+    checkHasDatosFacturacion,
+    invalidateDatosFacturacionCache,
+    hasDatosFacturacion
   }
 }
