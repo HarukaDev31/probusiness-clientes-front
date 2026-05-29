@@ -33,10 +33,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuth } from '../composables/auth/useAuth'
-import { useWebSocketNotifications } from '../composables/useWebSocketNotifications'
-import { useWebSocketRole } from '../composables/websocket/useWebSocketRole'
 import SidebarMenu from '../components/SidebarMenu.vue'
-import Breadcrumbs from '../components/Breadcrumbs.vue'
 import SessionExpiredModal from '../components/SessionExpiredModal.vue'
 import GlobalNotifications from '../components/GlobalNotifications.vue'
 import ModalContainer from '../components/ModalContainer.vue'
@@ -148,12 +145,6 @@ const pageTitle = computed(() => {
   })
   
   const { user, logout, initializeAuth, menu } = useAuth()
-  
-  // Inicializar sistema de WebSocket
-  useWebSocketRole()
-  
-  // Inicializar notificaciones de WebSocket
-  useWebSocketNotifications()
   
   // Convertir menús del login al formato del sidebar
   const sidebarCategories = computed(() => {

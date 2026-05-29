@@ -341,10 +341,10 @@
                     <p v-if="fieldErrors.repeatPassword" class="text-red-500 text-xs mt-1">{{ fieldErrors.repeatPassword }}</p>
                     <p v-else class="text-xs text-gray-500 mt-1">(*) Debe coincidir con la contraseña.</p>
                 </div>
-                <button type="submit" :disabled="loading"
-                    class="w-full bg-orange-500 text-white py-3 sm:py-4 rounded-lg font-semibold text-base sm:text-lg hover:bg-orange-600 transition disabled:opacity-60">
-                    <span v-if="loading" class="animate-spin h-5 w-5 mr-3 border-t-2 border-white rounded-full"></span>
-                    Crear cuenta
+                <button type="submit" :disabled="registerLoading"
+                    class="w-full flex items-center justify-center bg-orange-500 text-white py-3 sm:py-4 rounded-lg font-semibold text-base sm:text-lg hover:bg-orange-600 transition disabled:opacity-60 disabled:cursor-not-allowed">
+                    <span v-if="registerLoading" class="animate-spin h-5 w-5 mr-3 border-2 border-white border-t-transparent rounded-full" />
+                    {{ registerLoading ? 'Creando cuenta...' : 'Crear cuenta' }}
                 </button>
             </form>
             <div class="flex items-center my-4 sm:my-6">
@@ -414,14 +414,12 @@ import { vMaska } from 'maska/vue'
 
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-const { login, loading, error } = useAuth()
 import { useModal } from '@/composables/commons/useModal'
 import { useAuth } from '@/composables/auth/useAuth'
-import { useSpinner } from '../composables/commons/useSpinner'
 import { useLocation } from '../composables/commons/useLocation'
 import { useOptions } from '../composables/commons/useOptions'
-const { withSpinner } = useSpinner()
-const { register, loading: registerLoading, error: registerError } = useAuth()
+
+const { register, loading: registerLoading } = useAuth()
 const { departamentos, provincias, distritos, getDepartamentos, getProvincias, getDistritos, loadingDepartamentos, loadingProvincias, loadingDistritos } = useLocation()
 const { paises, getPaises } = useOptions()
 const router = useRouter()

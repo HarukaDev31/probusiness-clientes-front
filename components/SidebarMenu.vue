@@ -179,7 +179,6 @@ import type { SidebarCategory } from '../types/module'
 import { ROLES } from '~/constants/roles'
 import { useUserRole } from '../composables/auth/useUserRole'
 import { useAuth } from '../composables/auth/useAuth'
-import { useNotifications } from '../composables/useNotifications'
 
 interface AuthUser {
   id: number | string
@@ -213,12 +212,6 @@ const {
   userEmail,
   fetchCurrentUser
 } = useUserRole()
-
-// Notifications composable
-const {
-  unreadCount,
-  fetchUnreadCount
-} = useNotifications()
 
 import { CUSTOM_MENUS_PER_ROLE } from '~/constants/sidebar'
 // Dark mode
@@ -285,24 +278,6 @@ const navigateOrToggle = (item: any) => {
 const logout = async () => {
   const { logout } = useAuth()
   await logout()
-}
-
-const openNotifications = async () => {
-  // Refrescar contador antes de navegar
-  await fetchUnreadCount()
-  await navigateTo('/notificaciones')
-  
-  // Cerrar sidebar en mobile después de navegar
-  const isMobile = () => {
-    if (process.client) {
-      return window.innerWidth < 1024 // lg breakpoint de Tailwind
-    }
-    return false
-  }
-  
-  if (isMobile()) {
-    visible.value = false
-  }
 }
 
 /**

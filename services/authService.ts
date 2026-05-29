@@ -1,6 +1,4 @@
 import type { User, LoginCredentials as _LoginCredentials, LoginResponse as _LoginResponse, ApiLoginResponse, RegisterCredentials, RegisterResponse } from '../types/auth'
-import { websocketRoles } from '../config/websocket/channels'
-import { useEcho } from '../composables/websocket/useEcho'
 
 interface ApiPlugin {
   call: <T>(endpoint: string, options?: any) => Promise<T>
@@ -59,8 +57,6 @@ class AuthService {
   private token: string | null = null
   private menu: AuthMenu[] = []
   private nuxtApp: any = null
-  private echo = useEcho()
-  private isEchoInitialized = false
 
   private constructor() {
     this.initializeFromStorage()
@@ -77,30 +73,6 @@ class AuthService {
     this.nuxtApp = app
   }
 
-  async initializeEcho() {
-    if (!this.isEchoInitialized && this.token) {
-      const config = {
-        wsHost: this.nuxtApp.$config.public.pusherWsHost,
-        forceTLS: false,
-        enabledTransports: ['ws', 'wss'],
-        authEndpoint: `https://${this.nuxtApp.$config.public.pusherWsHost}/api/broadcasting/auth`,
-        auth: {
-          headers: {
-            Authorization: `Bearer ${this.token}`,
-            Accept: 'application/json'
-          }
-        }
-      }
-
-      await this.echo.initializeEcho(config)
-      this.isEchoInitialized = true
-      const role = this.currentUser?.raw?.grupo.nombre
-      if (role) {
-        this.setupWebSocketChannels(role)
-      }
-    }
-  }
-
   private initializeFromStorage(): void {
     if (process.client) {
       const storedToken = localStorage.getItem('auth_token')
@@ -114,19 +86,6 @@ class AuthService {
       if (storedMenu) {
         this.menu = JSON.parse(storedMenu)
       }
-    }
-  }
-
-  private setupWebSocketChannels(role: string) {
-    if (!this.isEchoInitialized) {
-      console.warn('Echo no está inicializado. Los canales se configurarán después de la inicialización.')
-      return
-    }
-
-    const roleConfig = websocketRoles[role]
-    if (roleConfig) {
-      console.log('Suscribiendo a canales para rol:', role)
-      this.echo.subscribeToRoleChannels(roleConfig)
     }
   }
 
@@ -190,9 +149,6 @@ class AuthService {
         )
         this.menu = menu
         this.saveToStorage()
-
-        // Inicializar Echo y configurar canales
-        await this.initializeEcho()
 
         return {
           success: true,
@@ -266,9 +222,6 @@ class AuthService {
         )
         this.menu = menu
         this.saveToStorage()
-
-        // Inicializar Echo y configurar canales
-        await this.initializeEcho()
 
         return {
           success: true,
@@ -347,9 +300,6 @@ class AuthService {
         this.token = token
         this.menu = menu
         this.saveToStorage()
-
-        // Inicializar Echo y configurar canales
-        await this.initializeEcho()
 
         return {
           success: true,
@@ -462,11 +412,6 @@ class AuthService {
 
   async logout(): Promise<void> {
     try {
-      if (this.isEchoInitialized) {
-        this.echo.disconnect()
-        this.isEchoInitialized = false
-      }
-
       this.currentUser = null
       this.token = null
       this.menu = []
