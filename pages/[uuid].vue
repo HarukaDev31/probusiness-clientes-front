@@ -1024,6 +1024,7 @@ const downloadPDF = async () => {
    }
  })
 </script>
+
 <style scoped>
 /* Transiciones */
 .slide-enter-active,

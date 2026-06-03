@@ -707,6 +707,8 @@ const validateAllFields = () => {
 
 
 async function handleRegister() {
+    if (registerLoading.value) return
+
     // Validar todos los campos
     if (!validateAllFields()) {
         return
@@ -724,54 +726,45 @@ async function handleRegister() {
         }
     })
 
-    // loading.value = true
-    await withSpinner(async () => {
-        try {
-            const requestData = {
-                name: registerData.value.nombre,
-                nombre: registerData.value.nombre,
-                apellido: registerData.value.apellido,
-                email: registerData.value.email,
-                whatsapp: registerData.value.whatsapp,
-                password: registerData.value.password,
-                repeatPassword: registerData.value.repeatPassword,
-                dni: registerData.value.dni,
-                fechaNacimiento: registerData.value.fechaNacimiento,
-                no_como_entero: registerData.value.no_como_entero || null,
-                no_otros_como_entero_empresa: registerData.value.no_otros_como_entero_empresa || null,
-                departamento: parseInt(registerData.value.departamento) || 1, // Usar 1 como default
-                provincia: parseInt(registerData.value.provincia) || 1, // Usar 1 como default
-                distrito: parseInt(registerData.value.distrito) || 1, // Usar 1 como default
-                pais_id: registerData.value.pais_id ? parseInt(registerData.value.pais_id) : null
-            }
-            
-            console.log('📤 Datos enviados al backend:', requestData)
-
-            const response = await register(requestData)
-            console.log(response,'response')
-            if (response.success) {
-                showSuccess('¡Cuenta creada exitosamente! Redirigiendo...', 'Registro Exitoso')
-                setTimeout(() => {
-                    // Verificar si hay ruta de retorno guardada
-                    const checkingRoute = localStorage.getItem('checkingRoute')
-                    if (checkingRoute) {
-                        console.log('Redirigiendo a:', checkingRoute)
-                        localStorage.removeItem('checkingRoute') // Limpiar después de usar
-                        router.push(checkingRoute)
-                    } else {
-                        router.push('/')
-                    }
-                }, 1000)
-            } else {
-                showError(response.error || 'Error al registrar usuario', 'Error al registrar usuario')
-            }
-        } catch (error) {
-            console.error('Error during register:', error)
-            showError(error.data?.message || 'Error al registrar usuario', 'Error al registrar usuario')
-        } finally {
-            // loading.value = false
+    try {
+        const requestData = {
+            name: registerData.value.nombre,
+            nombre: registerData.value.nombre,
+            apellido: registerData.value.apellido,
+            email: registerData.value.email,
+            whatsapp: registerData.value.whatsapp,
+            password: registerData.value.password,
+            repeatPassword: registerData.value.repeatPassword,
+            dni: registerData.value.dni,
+            fechaNacimiento: registerData.value.fechaNacimiento,
+            no_como_entero: registerData.value.no_como_entero || null,
+            no_otros_como_entero_empresa: registerData.value.no_otros_como_entero_empresa || null,
+            departamento: parseInt(registerData.value.departamento) || 1,
+            provincia: parseInt(registerData.value.provincia) || 1,
+            distrito: parseInt(registerData.value.distrito) || 1,
+            pais_id: registerData.value.pais_id ? parseInt(registerData.value.pais_id) : null
         }
-    })
+
+        console.log('📤 Datos enviados al backend:', requestData)
+
+        const response = await register(requestData)
+        console.log(response, 'response')
+        if (response.success) {
+            showSuccess('¡Cuenta creada exitosamente! Redirigiendo...', 'Registro Exitoso')
+            const checkingRoute = localStorage.getItem('checkingRoute')
+            if (checkingRoute) {
+                localStorage.removeItem('checkingRoute')
+                await router.push(checkingRoute)
+            } else {
+                await router.push('/')
+            }
+        } else {
+            showError(response.error || 'Error al registrar usuario', 'Error al registrar usuario')
+        }
+    } catch (error) {
+        console.error('Error during register:', error)
+        showError(error.data?.message || 'Error al registrar usuario', 'Error al registrar usuario')
+    }
 }
 function closeRegister() {
     showRegister.value = false
