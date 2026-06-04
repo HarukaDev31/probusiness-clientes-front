@@ -1,4 +1,5 @@
 import { BaseService } from './base/BaseService'
+import { fetchContractPdfArrayBuffer } from '~/utils/contracts/contractUrl'
 
 // Interfaces para el contrato de servicio
 export interface ServiceContractResponse {
@@ -116,16 +117,41 @@ export class ServiceContractService extends BaseService {
    * @param filename - Nombre del archivo (opcional)
    * @returns Promise<void>
    */
-  static async downloadServiceContract(url: string, filename?: string): Promise<void> {
+  /**
+   * PDF vía API (mismo origen que el backend; evita CORS/403 del CDN en el navegador).
+   */
+  static async fetchServiceContractPdfBuffer (contractUuid: string): Promise<ArrayBuffer> {
+    const endpoint = `api/contenedor/external/cotizacion/service-contract-pdf/${contractUuid}`
+    return await this.apiCall<ArrayBuffer>(endpoint, {
+      method: 'GET',
+      responseType: 'arrayBuffer'
+    })
+  }
+
+  /** CDN primero; si falla y hay UUID, proxy por API. */
+  static async fetchContractPdf (
+    url: string,
+    contractUuid?: string
+  ): Promise<ArrayBuffer> {
+    try {
+      return await fetchContractPdfArrayBuffer(url)
+    } catch (cdnError) {
+      if (!contractUuid) throw cdnError
+      console.warn('[contrato] CDN no disponible, usando proxy API:', cdnError)
+      return await this.fetchServiceContractPdfBuffer(contractUuid)
+    }
+  }
+
+  static async downloadServiceContract(
+    url: string,
+    filename?: string,
+    contractUuid?: string
+  ): Promise<void> {
     try {
       console.log('🔧 ServiceContractService: Descargando contrato desde:', url)
       
-      const response = await fetch(url, { mode: 'cors', credentials: 'omit' })
-      if (!response.ok) {
-        throw new Error(`Error descargando archivo: ${response.statusText}`)
-      }
-      
-      const blob = await response.blob()
+      const buffer = await this.fetchContractPdf(url, contractUuid)
+      const blob = new Blob([buffer], { type: 'application/pdf' })
       const downloadUrl = window.URL.createObjectURL(blob)
       
       const link = document.createElement('a')

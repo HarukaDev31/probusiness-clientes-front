@@ -237,6 +237,7 @@
  import { useModal } from '~/composables/commons/useModal'
 import { useServiceContract } from '~/composables/useServiceContract'
 import { isAbsoluteHttpUrl } from '~/utils/contracts/contractUrl'
+import { ServiceContractService } from '~/services/serviceContractService'
 const { showSuccess, showError } = useModal()
 
 // Forzar tema claro siempre
@@ -616,11 +617,7 @@ async function createPdfLoadingTask (url: string) {
   }
 
   if (isAbsoluteHttpUrl(url)) {
-    const response = await fetch(url, { mode: 'cors', credentials: 'omit' })
-    if (!response.ok) {
-      throw new Error(`No se pudo descargar el contrato (${response.status})`)
-    }
-    const buffer = await response.arrayBuffer()
+    const buffer = await ServiceContractService.fetchContractPdf(url, uuid as string)
     return pdfjsLib.getDocument({ data: buffer, withCredentials: false })
   }
 
