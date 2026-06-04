@@ -25,10 +25,12 @@ export interface SignServiceContractRequest {
 export interface SignServiceContractResponse {
   success: boolean
   data: {
-    signed_url: string
-    uuid: string
-    filename: string
-    signed_at: string
+    /** URL pública CDN del PDF firmado */
+    signed_contract_url?: string
+    signed_url?: string
+    uuid?: string
+    filename?: string
+    signed_at?: string
   }
   message?: string
 }
@@ -118,7 +120,7 @@ export class ServiceContractService extends BaseService {
     try {
       console.log('🔧 ServiceContractService: Descargando contrato desde:', url)
       
-      const response = await fetch(url)
+      const response = await fetch(url, { mode: 'cors', credentials: 'omit' })
       if (!response.ok) {
         throw new Error(`Error descargando archivo: ${response.statusText}`)
       }

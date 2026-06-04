@@ -236,6 +236,7 @@
  import { useSpinner } from '~/composables/commons/useSpinner'
  import { useModal } from '~/composables/commons/useModal'
 import { useServiceContract } from '~/composables/useServiceContract'
+import { isAbsoluteHttpUrl } from '~/utils/contracts/contractUrl'
 const { showSuccess, showError } = useModal()
 
 // Forzar tema claro siempre
@@ -609,6 +610,23 @@ const handleTouchEnd = (event) => {
 const overlay = useOverlay()
 const signatureModal = overlay.create(SignatureModal)
 
+async function createPdfLoadingTask (url: string) {
+  if (!pdfjsLib) {
+    throw new Error('PDF.js no está inicializado')
+  }
+
+  if (isAbsoluteHttpUrl(url)) {
+    const response = await fetch(url, { mode: 'cors', credentials: 'omit' })
+    if (!response.ok) {
+      throw new Error(`No se pudo descargar el contrato (${response.status})`)
+    }
+    const buffer = await response.arrayBuffer()
+    return pdfjsLib.getDocument({ data: buffer, withCredentials: false })
+  }
+
+  return pdfjsLib.getDocument({ url, withCredentials: false })
+}
+
 // Inicializar PDF.js
 const initPdfJs = async () => {
    try {
@@ -662,12 +680,8 @@ const initPdfJs = async () => {
      }
      
      console.log('🔧 pdfUrl:', pdfUrl.value)
-     
-     // Configuración para cargar el documento
-     const loadingTask = pdfjsLib.getDocument({
-       url: pdfUrl.value,
-       withCredentials: false,
-     })
+
+     const loadingTask = await createPdfLoadingTask(pdfUrl.value)
      
      // Progreso de carga
      loadingTask.onProgress = (data) => {

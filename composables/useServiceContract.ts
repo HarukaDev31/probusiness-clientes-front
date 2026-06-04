@@ -1,7 +1,8 @@
 import { ref, computed } from 'vue'
-import { ServiceContractService, type ServiceContractResponse, type SignServiceContractRequest, type SignServiceContractResponse } from '~/services/serviceContractService'
+import { ServiceContractService, type ServiceContractResponse, type SignServiceContractResponse } from '~/services/serviceContractService'
 import { useSpinner } from '~/composables/commons/useSpinner'
 import { useModal } from '~/composables/commons/useModal'
+import { normalizeContractStorageUrl } from '~/utils/contracts/contractUrl'
 
 export interface ServiceContractData {
   cotizacion_contrato_url: string
@@ -86,15 +87,18 @@ export function useServiceContract() {
         console.log('🔧 useServiceContract: Obteniendo contrato para UUID:', uuid)
         
         const response: ServiceContractResponse = await ServiceContractService.getServiceContract(uuid)
-        
-         if (response.success && response.data && response.data.cotizacion_contrato_url) {
-           // Limpiar las URLs de caracteres escapados
-           const cleanOriginalUrl = response.data.cotizacion_contrato_url.replace(/\\\//g, '/')
-           const cleanSignedUrl = response.data.cotizacion_contrato_firmado_url?.replace(/\\\//g, '/')
 
+        const rawOriginal =
+          response.data?.cotizacion_contrato_url ?? response.data?.url ?? null
+        const cleanOriginalUrl = normalizeContractStorageUrl(rawOriginal)
+        const cleanSignedUrl = normalizeContractStorageUrl(
+          response.data?.cotizacion_contrato_firmado_url ?? null
+        )
+
+        if (response.success && response.data && cleanOriginalUrl) {
            contractData.value = {
              cotizacion_contrato_url: cleanOriginalUrl,
-             cotizacion_contrato_firmado_url: cleanSignedUrl,
+             cotizacion_contrato_firmado_url: cleanSignedUrl ?? undefined,
              uuid: response.data.uuid,
              filename: response.data.filename,
              size: response.data.size,
@@ -145,7 +149,17 @@ export function useServiceContract() {
         console.log('🔧 useServiceContract: Firmando contrato para UUID:', uuid)
         
         const result = await ServiceContractService.signServiceContract(uuid, signedFile)
-        
+
+        const signedCdnUrl = normalizeContractStorageUrl(
+          result.data?.signed_contract_url ?? result.data?.signed_url ?? null
+        )
+        if (signedCdnUrl && contractData.value) {
+          contractData.value = {
+            ...contractData.value,
+            cotizacion_contrato_firmado_url: signedCdnUrl
+          }
+        }
+
         console.log('✅ useServiceContract: Contrato firmado exitosamente:', result)
         return result
       }, 'Firmando contrato de servicio...')
