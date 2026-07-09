@@ -1,10 +1,9 @@
-import { ClientEventService } from '~/services/commons/clientEventService'
-import { devLogger } from '~/utils/devLogger'
+import { clientEventTrace } from '~/utils/clientEventTrace'
 
 export interface TrackClientEventOptions {
   page?: string
   metadata?: Record<string, unknown>
-  sendToApi?: boolean
+  level?: 'log' | 'warn' | 'error'
 }
 
 export const useClientEvents = (defaultPage?: string) => {
@@ -12,18 +11,11 @@ export const useClientEvents = (defaultPage?: string) => {
   const page = defaultPage ?? route.path
 
   const trackClientEvent = (event: string, options: TrackClientEventOptions = {}) => {
-    const payload = {
-      event,
+    clientEventTrace(event, {
       page: options.page ?? page,
-      metadata: options.metadata ?? {},
-      timestamp: new Date().toISOString()
-    }
-
-    devLogger.log('[ClientEvent]', payload)
-
-    if (options.sendToApi !== false) {
-      ClientEventService.track(payload)
-    }
+      metadata: options.metadata,
+      level: options.level ?? 'log'
+    })
   }
 
   const trackFieldInteraction = (
@@ -42,7 +34,8 @@ export const useClientEvents = (defaultPage?: string) => {
     metadata: Record<string, unknown> = {}
   ) => {
     trackClientEvent('form_submit', {
-      metadata: { form, status, ...metadata }
+      metadata: { form, status, ...metadata },
+      level: status === 'error' ? 'error' : status === 'validation_failed' ? 'warn' : 'log'
     })
   }
 
