@@ -341,10 +341,10 @@
                     <p v-if="fieldErrors.repeatPassword" class="text-red-500 text-xs mt-1">{{ fieldErrors.repeatPassword }}</p>
                     <p v-else class="text-xs text-gray-500 mt-1">(*) Debe coincidir con la contraseña.</p>
                 </div>
-                <button type="submit" :disabled="registerLoading"
+                <button type="submit" :disabled="isSubmitting || registerLoading"
                     class="w-full flex items-center justify-center bg-orange-500 text-white py-3 sm:py-4 rounded-lg font-semibold text-base sm:text-lg hover:bg-orange-600 transition disabled:opacity-60 disabled:cursor-not-allowed">
-                    <span v-if="registerLoading" class="animate-spin h-5 w-5 mr-3 border-2 border-white border-t-transparent rounded-full" />
-                    {{ registerLoading ? 'Creando cuenta...' : 'Crear cuenta' }}
+                    <span v-if="isSubmitting || registerLoading" class="animate-spin h-5 w-5 mr-3 border-2 border-white border-t-transparent rounded-full" />
+                    {{ isSubmitting || registerLoading ? 'Creando cuenta...' : 'Crear cuenta' }}
                 </button>
             </form>
             <div class="flex items-center my-4 sm:my-6">
@@ -418,11 +418,15 @@ import { useModal } from '@/composables/commons/useModal'
 import { useAuth } from '@/composables/auth/useAuth'
 import { useLocation } from '../composables/commons/useLocation'
 import { useOptions } from '../composables/commons/useOptions'
+import { useClientEvents } from '@/composables/commons/useClientEvents'
 
 const { register, loading: registerLoading } = useAuth()
 const { departamentos, provincias, distritos, getDepartamentos, getProvincias, getDistritos, loadingDepartamentos, loadingProvincias, loadingDistritos } = useLocation()
 const { paises, getPaises } = useOptions()
+const { trackClientEvent, trackFieldInteraction, trackFormSubmit } = useClientEvents('/register')
 const router = useRouter()
+
+const isSubmitting = ref(false)
 
 const showRegister = ref(false)
 const showPassword = ref(false)
@@ -518,6 +522,15 @@ const formattedDate = computed(() => {
 
 const { showError, showSuccess } = useModal()
 
+function getRegisterErrorMessage(error: unknown): string {
+    const err = error as { data?: { message?: string }; message?: string }
+    return err?.data?.message || err?.message || 'Error al registrar usuario'
+}
+
+function trackRegisterField(field: string, action: 'blur' | 'change' | 'input') {
+    trackFieldInteraction(field, action, { form: 'register' })
+}
+
 // Opciones para el campo "Por qué medio nos encontraste"
 // Usamos IDs numéricos en `value` para que el backend reciba un entero.
 const medioEncontradoOptions = [
@@ -529,9 +542,8 @@ const medioEncontradoOptions = [
     { label: 'Otros', value: 6 }
 ]
 
-// Agrega esta función para mostrar advertencias
-function showWarning(message, title = 'Advertencia') {
-    showError(message, title)
+function showWarning(title: string, message: string) {
+    showError(title, message)
 }
 
 // Función para formatear el número de WhatsApp
@@ -574,6 +586,7 @@ const closeDatePicker = () => {
 
 const confirmDate = () => {
     if (selectedDay.value && selectedMonth.value && selectedYear.value) {
+        trackRegisterField('fechaNacimiento', 'change')
         // Convertir a formato YYYY-MM-DD para el backend
         const day = selectedDay.value.padStart(2, '0')
         const month = selectedMonth.value.padStart(2, '0')
@@ -597,6 +610,7 @@ const clearDate = () => {
 
 // Funciones de validación
 const validateNombre = () => {
+    trackRegisterField('nombre', 'blur')
     if (!registerData.value.nombre.trim()) {
         fieldErrors.value.nombre = 'El nombre es requerido'
         return false
@@ -610,6 +624,7 @@ const validateNombre = () => {
 }
 
 const validateEmail = () => {
+    trackRegisterField('email', 'blur')
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!registerData.value.email.trim()) {
         fieldErrors.value.email = 'El correo electrónico es requerido'
@@ -624,6 +639,7 @@ const validateEmail = () => {
 }
 
 const validateWhatsApp = () => {
+    trackRegisterField('whatsapp', 'blur')
     const whatsappRegex = /^\d{9}$/
     if (!registerData.value.whatsapp.trim()) {
         fieldErrors.value.whatsapp = 'El número de WhatsApp es requerido'
@@ -638,6 +654,7 @@ const validateWhatsApp = () => {
 }
 
 const validateDni = () => {
+    trackRegisterField('dni', 'blur')
     const dniValue = registerData.value.dni.trim()
     
     if (!dniValue) {
@@ -661,6 +678,7 @@ const validateDni = () => {
 }
 
 const validatePassword = () => {
+    trackRegisterField('password', 'blur')
     if (!registerData.value.password) {
         fieldErrors.value.password = 'La contraseña es requerida'
         return false
@@ -674,6 +692,7 @@ const validatePassword = () => {
 }
 
 const validateRepeatPassword = () => {
+    trackRegisterField('repeatPassword', 'blur')
     if (!registerData.value.repeatPassword) {
         fieldErrors.value.repeatPassword = 'Confirma tu contraseña'
         return false
@@ -707,23 +726,19 @@ const validateAllFields = () => {
 
 
 async function handleRegister() {
-    if (registerLoading.value) return
+    if (isSubmitting.value || registerLoading.value) return
 
-    // Validar todos los campos
     if (!validateAllFields()) {
+        trackFormSubmit('register', 'validation_failed')
+        showError('Formulario incompleto', 'Revisa los campos marcados antes de continuar.')
         return
     }
 
-    // Imprimir valores de ubicación para debug
-    console.log('🚀 Valores de ubicación antes del envío:', {
+    isSubmitting.value = true
+    trackFormSubmit('register', 'start', {
         departamento: registerData.value.departamento,
         provincia: registerData.value.provincia,
-        distrito: registerData.value.distrito,
-        tiposDeDatos: {
-            departamento: typeof registerData.value.departamento,
-            provincia: typeof registerData.value.provincia,
-            distrito: typeof registerData.value.distrito
-        }
+        distrito: registerData.value.distrito
     })
 
     try {
@@ -745,12 +760,11 @@ async function handleRegister() {
             pais_id: registerData.value.pais_id ? parseInt(registerData.value.pais_id) : null
         }
 
-        console.log('📤 Datos enviados al backend:', requestData)
-
         const response = await register(requestData)
-        console.log(response, 'response')
+
         if (response.success) {
-            showSuccess('¡Cuenta creada exitosamente! Redirigiendo...', 'Registro Exitoso')
+            trackFormSubmit('register', 'success', { email: registerData.value.email })
+            showSuccess('Registro exitoso', '¡Cuenta creada exitosamente! Redirigiendo...')
             const checkingRoute = localStorage.getItem('checkingRoute')
             if (checkingRoute) {
                 localStorage.removeItem('checkingRoute')
@@ -759,11 +773,16 @@ async function handleRegister() {
                 await router.push('/')
             }
         } else {
-            showError(response.error || 'Error al registrar usuario', 'Error al registrar usuario')
+            const errorMessage = response.error || 'Error al registrar usuario'
+            trackFormSubmit('register', 'error', { message: errorMessage })
+            showError('Error al registrar', errorMessage)
         }
     } catch (error) {
-        console.error('Error during register:', error)
-        showError(error.data?.message || 'Error al registrar usuario', 'Error al registrar usuario')
+        const errorMessage = getRegisterErrorMessage(error)
+        trackFormSubmit('register', 'error', { message: errorMessage })
+        showError('Error al registrar', errorMessage)
+    } finally {
+        isSubmitting.value = false
     }
 }
 function closeRegister() {
@@ -887,6 +906,7 @@ const validateDistrito = () => {
 
 // Funciones para manejar cambios en los selects de ubicación
 const onDepartamentoChange = async () => {
+    trackRegisterField('departamento', 'change')
     fieldErrors.value.departamento = ''
     registerData.value.provincia = null
     registerData.value.distrito = null
@@ -899,6 +919,7 @@ const onDepartamentoChange = async () => {
 }
 
 const onProvinciaChange = async () => {
+    trackRegisterField('provincia', 'change')
     fieldErrors.value.provincia = ''
     registerData.value.distrito = null
     fieldErrors.value.distrito = ''
@@ -921,33 +942,20 @@ function closeForgot() {
     forgotEmail.value = ''
     forgotSuccess.value = false
 }
-// Función de login removida - no se usa en esta página
 
-// Cargar datos iniciales
 onMounted(async () => {
-    console.log('🎬 Register.vue: Componente montado, cargando departamentos...')
-    
-    // Test de conexión a la API
-    try {
-        const { $api } = useNuxtApp()
-        console.log('🔌 Probando conexión a la API...')
-        const testResponse = await $api.call('/api/test')
-        console.log('✅ API conectada:', testResponse)
-    } catch (error) {
-        console.warn('⚠️ Error de conexión a la API:', error)
-    }
-    
+    trackClientEvent('page_mounted', { metadata: { form: 'register' } })
+
     try {
         await getDepartamentos()
-        console.log('✅ Register.vue: Departamentos cargados exitosamente')
-    } catch (error) {
-        console.error('❌ Register.vue: Error al cargar departamentos:', error)
+    } catch {
+        showError('Error al cargar ubicaciones', 'No se pudieron cargar los departamentos. Intenta recargar la página.')
     }
 
     try {
         await getPaises()
-    } catch (error) {
-        console.error('❌ Register.vue: Error al cargar países:', error)
+    } catch {
+        // País es opcional; no bloquear el registro
     }
 })
 

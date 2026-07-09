@@ -51,9 +51,8 @@ export const useAuth = () => {
       menu.value = authService.getMenu()
       return response
     }
-    catch (err) {
-      console.log(err, 'err')
-      error.value = err.data.message
+    catch (err: any) {
+      error.value = err?.data?.message || err?.message || 'Error al registrar usuario'
       throw err
     } finally {
       loading.value = false

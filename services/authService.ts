@@ -267,13 +267,9 @@ class AuthService {
         distrito_id: credentials.distrito,
         pais_id: credentials.pais_id
       }
-      
-      console.log('🔧 AuthService: Enviando al backend:', requestPayload)
-      
-      // Corregido para usar los tipos correctos y evitar el uso de <any>
+
       const response = await this.nuxtApp.$api.auth('/api/auth/clientes/register', requestPayload)
       if (response.success && response.token && response.user) {
-        console.log(response)
         const user: AuthUser = {
           id: response.user.id,
           email: response.user.email || response.user.No_Usuario,

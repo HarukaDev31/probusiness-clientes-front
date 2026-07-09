@@ -5,13 +5,9 @@ export class LocationService extends BaseService {
 
     static async getDepartamentos() {
         try {
-            console.log('📡 LocationService: Llamando a API departamentos...')
-            console.log('🔗 URL:', `${this.baseUrl}/departamentos`)
             const response = await this.apiCall<any>(`${this.baseUrl}/departamentos`)
-            console.log('✅ LocationService: Respuesta de departamentos:', response)
             return response
         } catch (error) {
-            console.error('❌ LocationService: Error al obtener departamentos:', error)
             throw error
         }
     }

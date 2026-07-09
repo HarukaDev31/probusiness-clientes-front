@@ -75,7 +75,6 @@ export default defineNuxtPlugin(() => {
         body: credentials
       })
     } catch (error: ErrorResponse | any) {
-      console.error('Error in authApiCall:', error.message,error.data)
       throw error
     }
   }

@@ -1,21 +1,12 @@
 <template>
-  <div class="fixed inset-0 flex items-center justify-center p-4"
-  :class="[
-    modals.length > 0 ? 'z-[9000]' : 'z-[-1]',
-    'pointer-events-auto'
-  ]"
-  >
-    
-    <DynamicModal
-      v-for="modal in modals"
-      :key="modal.id"
-      :modal="modal"
-      :visible="true"
-      @close="removeModal(modal.id)"
-      @confirm="handleConfirm(modal)"
-      @cancel="handleCancel(modal)"
-    />
-  </div>
+  <DynamicModal
+    v-for="modal in modals"
+    :key="modal.id"
+    :modal="modal"
+    @close="removeModal(modal.id)"
+    @confirm="handleConfirm(modal)"
+    @cancel="handleCancel(modal)"
+  />
 </template>
 
 <script setup lang="ts">
