@@ -3,6 +3,7 @@
  * Llama a GET /api/contenedor/external/inspeccion/{uuid}
  */
 import type { InspeccionPublicaResponse } from '~/types/inspeccionPublica'
+import { getOrgKeyHeader } from '~/utils/orgKey'
 
 export const getInspeccionByUuid = async (uuid: string): Promise<InspeccionPublicaResponse> => {
   const config = useRuntimeConfig()
@@ -13,6 +14,7 @@ export const getInspeccionByUuid = async (uuid: string): Promise<InspeccionPubli
     method: 'GET',
     headers: {
       Accept: 'application/json',
+      ...getOrgKeyHeader(),
     },
   })
 

@@ -1,4 +1,5 @@
 import type { ErrorResponse } from '~/types/auth'
+import { getOrgKeyHeader } from '~/utils/orgKey'
 
 export default defineNuxtPlugin(() => {
   const config = useRuntimeConfig()
@@ -11,7 +12,6 @@ export default defineNuxtPlugin(() => {
     }
   }
 
-  // Función para obtener el token de autenticación
   const getAuthToken = (): string | null => {
     if (process.client) {
       return localStorage.getItem('auth_token')
@@ -19,14 +19,12 @@ export default defineNuxtPlugin(() => {
     return null
   }
 
-  // Función para manejar sesión expirada
   const handleSessionExpired = () => {
     if (process.client) {
       window.dispatchEvent(new CustomEvent('session-expired'))
     }
   }
 
-  // Función para hacer llamadas a la API con configuración consistente
   const apiCall = async <T>(
     endpoint: string,
     options: any = {}
@@ -34,28 +32,29 @@ export default defineNuxtPlugin(() => {
     try {
       const token = getAuthToken()
       const isFormData = options.body instanceof FormData
+      const orgHeaders = getOrgKeyHeader()
 
       const finalHeaders = {
         ...(isFormData ? {} : API_CONFIG.headers),
         ...options.headers,
+        ...orgHeaders,
         ...(token && { 'Authorization': `Bearer ${token}` })
       }
 
-      const config = {
+      const fetchConfig = {
         baseURL: API_CONFIG.baseURL,
         timeout: API_CONFIG.timeout,
         headers: finalHeaders,
         ...options
       }
 
-      config.headers = finalHeaders
+      fetchConfig.headers = finalHeaders
 
-      return await $fetch<T>(endpoint, config)
+      return await $fetch<T>(endpoint, fetchConfig)
     } catch (error: any) {
-      // No activar sesión expirada para endpoints de login
-      const isLoginEndpoint = endpoint.includes('/api/auth/login') || 
+      const isLoginEndpoint = endpoint.includes('/api/auth/login') ||
                              endpoint.includes('/api/auth/clientes/login')
-      
+
       if ((error.status === 401 || error.statusCode === 401) && !isLoginEndpoint) {
         handleSessionExpired()
       }
@@ -64,7 +63,6 @@ export default defineNuxtPlugin(() => {
     }
   }
 
-  // Función específica para autenticación
   const authApiCall = async <T>(
     endpoint: string,
     credentials: { No_Usuario: string; No_Password: string }
