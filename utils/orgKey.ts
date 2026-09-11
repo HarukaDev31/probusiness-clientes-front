@@ -3,10 +3,9 @@
  * Vacío o ausente → las llamadas fallan en el front (no se envían) y el back responde 403.
  */
 export function getOrgKeyHeader(): Record<string, string> {
-  const config = useRuntimeConfig()
-  const key = String(config.public.orgKey || '').trim()
+  const key = getOrgKeyOrEmpty()
   if (!key) {
-    throw new Error('NUXT_PUBLIC_ORG_KEY no configurado: no se puede llamar a la API sin organización')
+    return {}
   }
   return { 'X-Org-Key': key }
 }
