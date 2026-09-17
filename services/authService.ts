@@ -259,13 +259,15 @@ class AuthService {
         password: credentials.password,
         repeatPassword: credentials.repeatPassword,
         dni: credentials.dni,
+        tipo_documento: credentials.tipo_documento || 'DNI',
         fechaNacimiento: credentials.fechaNacimiento,
         no_como_entero: credentials.no_como_entero,
         no_otros_como_entero_empresa: credentials.no_otros_como_entero_empresa,
         departamento_id: credentials.departamento,
         provincia_id: credentials.provincia,
         distrito_id: credentials.distrito,
-        pais_id: credentials.pais_id
+        pais_id: credentials.pais_id,
+        whatsapp_pais_id: credentials.whatsapp_pais_id ?? credentials.pais_id ?? null
       }
 
       const response = await this.nuxtApp.$api.auth('/api/auth/clientes/register', requestPayload)

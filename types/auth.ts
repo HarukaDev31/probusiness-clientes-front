@@ -33,6 +33,7 @@ export interface RegisterCredentials {
   password: string
   repeatPassword: string
   dni: string
+  tipo_documento?: 'DNI' | 'ID'
   fechaNacimiento: string
   no_como_entero: number | null
   no_otros_como_entero_empresa?: string | null
@@ -40,6 +41,7 @@ export interface RegisterCredentials {
   provincia?: number
   distrito?: number
   pais_id?: number
+  whatsapp_pais_id?: number | null
 }
 
 export interface RegisterResponse {

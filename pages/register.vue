@@ -62,14 +62,14 @@
             <h2
                 class="text-xl sm:text-2xl font-semibold text-center mb-4 sm:mb-6 border-b border-gray-200 pb-3 sm:pb-4">
                 Registrarme</h2>
-            <form @submit.prevent="handleRegister" class="space-y-4 sm:space-y-5">
+            <form @submit.prevent="handleRegister" class="space-y-4 sm:space-y-5 register-form">
                 <div>
                     <label class="block text-gray-600 mb-1" for="nombre">Nombre Completo</label>
                     <UInput 
                         id="nombre" 
                         v-model="registerData.nombre" 
                         type="text" 
-                        class="w-full"
+                        class="w-full cursor-pointer"
                         :class="{ 'border-red-500': fieldErrors.nombre }"
                         placeholder="Ingresa tus nombres" 
                         @blur="validateNombre"
@@ -84,7 +84,7 @@
                         id="email" 
                         v-model="registerData.email" 
                         type="email" 
-                        class="w-full"
+                        class="w-full cursor-pointer"
                         :class="{ 'border-red-500': fieldErrors.email }"
                         placeholder="correo@ejemplo.com" 
                         @blur="validateEmail"
@@ -93,6 +93,35 @@
                     />
                     <p v-if="fieldErrors.email" class="text-red-500 text-xs mt-1">{{ fieldErrors.email }}</p>
                 </div>
+
+                <div>
+                    <label class="block text-gray-600 mb-1" for="pais_id">País <span class="text-red-500">*</span></label>
+                    <USelectMenu
+                        id="pais_id"
+                        v-model="selectedPais"
+                        :items="paises"
+                        placeholder="Selecciona tu país"
+                        searchable
+                        :search-input="{ placeholder: 'Buscar país...' }"
+                        class="w-full cursor-pointer"
+                        :ui="{ content: 'max-h-60', base: 'cursor-pointer' }"
+                        :class="{ 'ring-1 ring-red-500 rounded-md': fieldErrors.pais_id }"
+                        @update:model-value="onPaisChange"
+                    >
+                        <template #leading>
+                            <img
+                                v-if="selectedPais?.flag_url"
+                                :src="selectedPais.flag_url"
+                                :alt="selectedPais.label"
+                                class="h-4 w-6 rounded-sm object-cover"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </template>
+                    </USelectMenu>
+                    <p v-if="fieldErrors.pais_id" class="text-red-500 text-xs mt-1">{{ fieldErrors.pais_id }}</p>
+                </div>
+
                 <div>
                     <label class="block text-gray-600 mb-1" for="whatsapp">
                         <span class="flex items-center gap-2">
@@ -103,48 +132,75 @@
                             WhatsApp
                         </span>
                     </label>
-                    <UInput 
-                        id="whatsapp" 
-                        v-model="registerData.whatsapp" 
-                        class="w-full"
-                        :class="{ 'border-red-500': fieldErrors.whatsapp }"
-                        placeholder="999 999 999"
-                        v-maska="'#########'"
-                        @UInput="registerData.whatsapp = formatWhatsApp($event.target.value)"
-                        @blur="validateWhatsApp"
-                        @input="fieldErrors.whatsapp = ''"
-                         
-                    />
+                    <div class="flex gap-2">
+                        <USelectMenu
+                            id="whatsapp_pais_id"
+                            v-model="selectedWhatsappPais"
+                            :items="paisesConPrefijo"
+                            placeholder="+51"
+                            searchable
+                            :search-input="{ placeholder: 'Código o país...' }"
+                            class="w-[9.5rem] shrink-0 cursor-pointer"
+                            :ui="{ content: 'max-h-60 w-56', base: 'cursor-pointer' }"
+                            :class="{ 'ring-1 ring-red-500 rounded-md': fieldErrors.whatsapp }"
+                            @update:model-value="onWhatsappPaisChange"
+                        >
+                            <template #default>
+                                <span class="inline-flex items-center gap-1.5 truncate cursor-pointer">
+                                    <img
+                                        v-if="selectedWhatsappPais?.flag_url"
+                                        :src="selectedWhatsappPais.flag_url"
+                                        alt=""
+                                        class="h-4 w-6 rounded-sm object-cover"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                    <span>+{{ selectedWhatsappPais?.phone_code || '—' }}</span>
+                                </span>
+                            </template>
+                        </USelectMenu>
+                        <UInput 
+                            id="whatsapp" 
+                            v-model="registerData.whatsapp" 
+                            class="w-full flex-1 cursor-pointer"
+                            :class="{ 'border-red-500': fieldErrors.whatsapp }"
+                            :placeholder="whatsappPlaceholder"
+                            @blur="validateWhatsApp"
+                            @input="onWhatsappInput"
+                        />
+                    </div>
                     <p v-if="fieldErrors.whatsapp" class="text-red-500 text-xs mt-1">{{ fieldErrors.whatsapp }}</p>
-                    <p v-else class="text-xs text-gray-500 mt-1">(*) Solo números (9 dígitos)</p>
+                    <p v-else class="text-xs text-gray-500 mt-1">
+                        (*) Solo el número local, sin el código de país
+                        <span v-if="selectedWhatsappPais?.phone_code"> (+{{ selectedWhatsappPais.phone_code }})</span>
+                    </p>
                 </div>
-                <!--Form Field dni-->
+                <!--Form Field documento (DNI / ID)-->
                 <div class="relative">
-                    <label class="block text-gray-600 mb-1" for="dni">DNI</label>
-                    <UInput 
-                        id="dni" 
-                        v-model="registerData.dni" 
-                        type="text"  
-                        class="w-full"
-                        :class="{ 'border-red-500': fieldErrors.dni }"
-                        v-maska="'########'"
-                        placeholder="Ingresa tu DNI" 
-                        @blur="validateDni"
-                        @input="handleDniInput"
-                         
-                    />
+                    <label class="block text-gray-600 mb-1" for="dni">Documento de identidad</label>
+                    <div class="flex gap-2">
+                        <USelectMenu
+                            id="tipo_documento"
+                            v-model="selectedTipoDocumento"
+                            :items="tipoDocumentoOptions"
+                            class="w-[6.5rem] shrink-0 cursor-pointer"
+                            :ui="{ base: 'cursor-pointer' }"
+                            @update:model-value="onTipoDocumentoChange"
+                        />
+                        <UInput
+                            id="dni"
+                            v-model="registerData.dni"
+                            type="text"
+                            class="w-full flex-1"
+                            :class="{ 'border-red-500': fieldErrors.dni }"
+                            :placeholder="documentoPlaceholder"
+                            :maxlength="documentoMaxLength"
+                            @blur="validateDni"
+                            @input="handleDniInput"
+                        />
+                    </div>
                     <p v-if="fieldErrors.dni" class="text-red-500 text-xs mt-1">{{ fieldErrors.dni }}</p>
-                </div>
-                <!-- Campo Nacionalidad -->
-                <div>
-                    <label class="block text-gray-600 mb-1" for="pais_id">Nacionalidad</label>
-                    <USelect
-                        id="pais_id"
-                        v-model="registerData.pais_id"
-                        :items="paises"
-                        placeholder="Selecciona tu país"
-                        class="w-full"
-                    />
+                    <p v-else class="text-xs text-gray-500 mt-1">{{ documentoHint }}</p>
                 </div>
 
                 <!--FIELD FECHA DE NACIMIENTO-->
@@ -216,8 +272,8 @@
                     <p v-if="fieldErrors.fechaNacimiento" class="text-red-500 text-xs mt-1">{{ fieldErrors.fechaNacimiento }}</p>
                 </div>  
                 
-                <!-- Campos de Ubicación -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Campos de Ubicación (solo Perú) -->
+                <div v-if="isPeru" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <!-- Departamento -->
                     <div>
                         <label class="block text-gray-600 mb-1" for="departamento">Depart. <span class="text-red-500">*</span></label>
@@ -273,7 +329,7 @@
                     <USelect 
                         id="no_como_entero"
                         v-model="registerData.no_como_entero"
-                        :items="medioEncontradoOptions"
+                        :items="mediosEncontrado"
                         class="w-full"
                         :class="{ 'border-red-500': fieldErrors.no_como_entero }"
                         placeholder="Selecciona una opción"
@@ -281,7 +337,7 @@
                         @change="fieldErrors.no_como_entero = ''"
                     />
                     <!-- Si el usuario elige 'Otros', mostrar campo para especificar -->
-                    <div v-if="registerData.no_como_entero == 6" class="mt-2">
+                    <div v-if="isOtrosMedio" class="mt-2">
                         <UInput
                             v-model="registerData.no_otros_como_entero_empresa"
                             placeholder="Especifica cómo nos encontraste"
@@ -412,17 +468,17 @@ definePageMeta({
 })
 import { vMaska } from 'maska/vue'
 
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useModal } from '@/composables/commons/useModal'
 import { useAuth } from '@/composables/auth/useAuth'
 import { useLocation } from '../composables/commons/useLocation'
-import { useOptions } from '../composables/commons/useOptions'
+import { useOptions, type PaisOption } from '../composables/commons/useOptions'
 import { useClientEvents } from '@/composables/commons/useClientEvents'
 
 const { register, loading: registerLoading } = useAuth()
 const { departamentos, provincias, distritos, getDepartamentos, getProvincias, getDistritos, loadingDepartamentos, loadingProvincias, loadingDistritos } = useLocation()
-const { paises, getPaises } = useOptions()
+const { paises, defaultPaisId, getPaises, mediosEncontrado, mediosOtrosCodes, getMediosEncontrado } = useOptions()
 const { trackClientEvent, trackFieldInteraction, trackFormSubmit } = useClientEvents('/register')
 const router = useRouter()
 
@@ -438,13 +494,71 @@ const registerData = ref({
     password: '',
     repeatPassword: '',
     dni: '',
+    tipo_documento: 'DNI' as 'DNI' | 'ID',
     fechaNacimiento: '',
     no_como_entero: null,
     no_otros_como_entero_empresa: '',
     departamento: null,
     provincia: null,
     distrito: null,
-    pais_id: null
+    pais_id: null as number | null,
+    whatsapp_pais_id: null as number | null
+})
+
+type PaisPrefixOption = PaisOption & { countryLabel: string }
+type TipoDocumentoOption = { label: string; value: 'DNI' | 'ID' }
+
+const tipoDocumentoOptions: TipoDocumentoOption[] = [
+    { label: 'DNI', value: 'DNI' },
+    { label: 'ID', value: 'ID' }
+]
+
+const selectedTipoDocumento = ref<TipoDocumentoOption>(tipoDocumentoOptions[0])
+
+const documentoPlaceholder = computed(() =>
+    registerData.value.tipo_documento === 'ID' ? 'Ingresa tu ID' : 'Ingresa tu DNI'
+)
+
+const documentoMaxLength = computed(() =>
+    registerData.value.tipo_documento === 'ID' ? 15 : 8
+)
+
+const documentoHint = computed(() =>
+    registerData.value.tipo_documento === 'ID'
+        ? '(*) ID: 5 a 15 caracteres alfanuméricos'
+        : '(*) DNI: exactamente 8 dígitos'
+)
+
+const selectedPais = ref<PaisOption | undefined>()
+const selectedWhatsappPais = ref<PaisPrefixOption | undefined>()
+
+const isPeru = computed(() => {
+    const iso = (selectedPais.value?.iso2 || '').toLowerCase()
+    if (iso === 'pe') return true
+    return selectedPais.value?.phone_code === '51'
+})
+
+const clearUbicacionPeru = () => {
+    registerData.value.departamento = null
+    registerData.value.provincia = null
+    registerData.value.distrito = null
+    fieldErrors.value.departamento = ''
+    fieldErrors.value.provincia = ''
+    fieldErrors.value.distrito = ''
+}
+
+const paisesConPrefijo = computed((): PaisPrefixOption[] =>
+    paises.value.map((p) => ({
+        ...p,
+        // Texto liviano para el listado; la bandera solo en el valor seleccionado
+        label: p.phone_code ? `+${p.phone_code} · ${p.label}` : p.label,
+        countryLabel: p.label
+    }))
+)
+
+const whatsappPlaceholder = computed(() => {
+    const code = selectedWhatsappPais.value?.phone_code
+    return code === '51' ? '999999999' : 'Número local'
 })
 
 // Estados de validación para cada campo
@@ -531,47 +645,104 @@ function trackRegisterField(field: string, action: 'blur' | 'change' | 'input') 
     trackFieldInteraction(field, action, { form: 'register' })
 }
 
-// Opciones para el campo "Por qué medio nos encontraste"
-// Usamos IDs numéricos en `value` para que el backend reciba un entero.
-const medioEncontradoOptions = [
-    { label: 'Tiktok', value: 1 },
-    { label: 'Facebook', value: 2 },
-    { label: 'Instagram', value: 3 },
-    { label: 'Youtube', value: 4 },
-    { label: 'Familiares/Amigos', value: 5 },
-    { label: 'Otros', value: 6 }
-]
+// Opciones "por qué medio nos encontraste": vienen de API (catálogo v2).
+// Códigos: 9=Recomendado, 7=Google, 8=Otros. v1 (main) sigue usando 5 y 6.
+const isOtrosMedio = computed(() =>
+    mediosOtrosCodes.value.includes(Number(registerData.value.no_como_entero))
+)
 
 function showWarning(title: string, message: string) {
     showError(title, message)
 }
 
-// Función para formatear el número de WhatsApp
-const formatWhatsApp = (value) => {
-    // Remover todos los caracteres no numéricos (solo números)
-    let cleaned = value.replace(/[^\d]/g, '')
-
-    // Limitar a 9 dígitos (número peruano sin código de país)
-    if (cleaned.length > 9) {
-        cleaned = cleaned.substring(0, 9)
+// Función para formatear el número de WhatsApp (solo dígitos nacionales)
+const formatWhatsApp = (value: string) => {
+    let cleaned = String(value || '').replace(/[^\d]/g, '')
+    const maxLen = selectedWhatsappPais.value?.phone_code === '51' ? 9 : 12
+    if (cleaned.length > maxLen) {
+        cleaned = cleaned.substring(0, maxLen)
     }
-
     return cleaned
 }
 
-// Función para manejar el input del DNI
+const onWhatsappInput = (event: Event) => {
+    const target = event.target as HTMLInputElement
+    registerData.value.whatsapp = formatWhatsApp(target?.value ?? registerData.value.whatsapp)
+    fieldErrors.value.whatsapp = ''
+}
+
+const resolvePaisOption = (id: number | null | undefined) =>
+    paises.value.find((p) => Number(p.value) === Number(id))
+
+const onPaisChange = (pais?: PaisOption | null) => {
+    trackRegisterField('pais_id', 'change')
+    fieldErrors.value.pais_id = ''
+    if (!pais) {
+        registerData.value.pais_id = null
+        clearUbicacionPeru()
+        return
+    }
+    registerData.value.pais_id = Number(pais.value)
+    // Prefijo WhatsApp sigue al país seleccionado (se puede cambiar aparte)
+    const prefixOption = paisesConPrefijo.value.find((p) => Number(p.value) === Number(pais.value)) || {
+        ...pais,
+        label: pais.phone_code ? `+${pais.phone_code}` : pais.label,
+        countryLabel: pais.label
+    }
+    selectedWhatsappPais.value = prefixOption
+    registerData.value.whatsapp_pais_id = Number(pais.value)
+    registerData.value.whatsapp = formatWhatsApp(registerData.value.whatsapp)
+
+    const peru = (pais.iso2 || '').toLowerCase() === 'pe' || pais.phone_code === '51'
+    if (!peru) {
+        clearUbicacionPeru()
+    }
+}
+
+const onWhatsappPaisChange = (pais?: PaisPrefixOption | null) => {
+    trackRegisterField('whatsapp_pais_id', 'change')
+    fieldErrors.value.whatsapp = ''
+    if (!pais) {
+        registerData.value.whatsapp_pais_id = null
+        return
+    }
+    registerData.value.whatsapp_pais_id = Number(pais.value)
+    registerData.value.whatsapp = formatWhatsApp(registerData.value.whatsapp)
+}
+
+const applyDefaultPais = () => {
+    const id = defaultPaisId.value || paises.value.find((p) => p.iso2 === 'pe')?.value || paises.value[0]?.value
+    if (!id) return
+    const option = resolvePaisOption(id)
+    if (!option) return
+    selectedPais.value = option
+    onPaisChange(option)
+}
+
+watch(paises, () => {
+    if (!selectedPais.value && paises.value.length) {
+        applyDefaultPais()
+    }
+})
+
+const onTipoDocumentoChange = (option: TipoDocumentoOption | undefined) => {
+    const next = option?.value === 'ID' ? 'ID' : 'DNI'
+    registerData.value.tipo_documento = next
+    selectedTipoDocumento.value = tipoDocumentoOptions.find((o) => o.value === next) || tipoDocumentoOptions[0]
+    registerData.value.dni = ''
+    fieldErrors.value.dni = ''
+    trackRegisterField('tipo_documento', 'change')
+}
+
+// Función para manejar el input del documento (valor siempre en dni)
 const handleDniInput = () => {
-    // Limpiar cualquier carácter que no sea número
-    const cleaned = registerData.value.dni.replace(/[^\d]/g, '')
-    
-    // Limitar a 8 dígitos máximo
-    if (cleaned.length <= 8) {
+    const raw = registerData.value.dni || ''
+    if (registerData.value.tipo_documento === 'ID') {
+        const cleaned = raw.replace(/[^A-Za-z0-9\-]/g, '').slice(0, 15)
         registerData.value.dni = cleaned
     } else {
-        registerData.value.dni = cleaned.substring(0, 8)
+        registerData.value.dni = raw.replace(/[^\d]/g, '').slice(0, 8)
     }
-    
-    // Limpiar error de validación
     fieldErrors.value.dni = ''
 }
 
@@ -640,39 +811,69 @@ const validateEmail = () => {
 
 const validateWhatsApp = () => {
     trackRegisterField('whatsapp', 'blur')
-    const whatsappRegex = /^\d{9}$/
-    if (!registerData.value.whatsapp.trim()) {
+    const digits = registerData.value.whatsapp.trim()
+    const code = selectedWhatsappPais.value?.phone_code || ''
+
+    if (!registerData.value.whatsapp_pais_id && !selectedWhatsappPais.value) {
+        fieldErrors.value.whatsapp = 'Selecciona el código de país del WhatsApp'
+        return false
+    }
+    if (!digits) {
         fieldErrors.value.whatsapp = 'El número de WhatsApp es requerido'
         return false
     }
-    if (!whatsappRegex.test(registerData.value.whatsapp)) {
-        fieldErrors.value.whatsapp = 'Ingresa un número de WhatsApp válido de 9 dígitos'
+    if (!/^\d+$/.test(digits)) {
+        fieldErrors.value.whatsapp = 'Ingresa solo números'
+        return false
+    }
+    if (code === '51') {
+        if (digits.length !== 9) {
+            fieldErrors.value.whatsapp = 'Ingresa un número peruano de 9 dígitos'
+            return false
+        }
+    } else if (digits.length < 7 || digits.length > 12) {
+        fieldErrors.value.whatsapp = 'Ingresa un número válido (7 a 12 dígitos)'
         return false
     }
     fieldErrors.value.whatsapp = ''
     return true
 }
 
+const validatePais = () => {
+    if (!registerData.value.pais_id) {
+        fieldErrors.value.pais_id = 'El país es requerido'
+        return false
+    }
+    fieldErrors.value.pais_id = ''
+    return true
+}
+
 const validateDni = () => {
     trackRegisterField('dni', 'blur')
     const dniValue = registerData.value.dni.trim()
-    
+    const tipo = registerData.value.tipo_documento || 'DNI'
+
     if (!dniValue) {
-        fieldErrors.value.dni = 'El DNI es requerido'
+        fieldErrors.value.dni = tipo === 'ID' ? 'El ID es requerido' : 'El DNI es requerido'
         return false
     }
-    
-    // Verificar que solo contenga números
-    if (!/^\d+$/.test(dniValue)) {
-        fieldErrors.value.dni = 'El DNI debe contener solo números'
-        return false
+
+    if (tipo === 'ID') {
+        if (!/^[A-Za-z0-9\-]{5,15}$/.test(dniValue)) {
+            fieldErrors.value.dni = 'El ID debe tener entre 5 y 15 caracteres alfanuméricos'
+            return false
+        }
+    } else {
+        if (!/^\d+$/.test(dniValue)) {
+            fieldErrors.value.dni = 'El DNI debe contener solo números'
+            return false
+        }
+        if (dniValue.length !== 8) {
+            fieldErrors.value.dni = 'El DNI debe tener exactamente 8 dígitos'
+            return false
+        }
     }
-    
-    if (dniValue.length !== 8) {
-        fieldErrors.value.dni = 'El DNI debe tener exactamente 8 dígitos'
-        return false
-    }
-    
+
     fieldErrors.value.dni = ''
     return true
 }
@@ -710,17 +911,18 @@ const validateAllFields = () => {
     // Ejecutar todas las validaciones para mostrar todos los errores
     const nombreValid = validateNombre()
     const emailValid = validateEmail()
+    const paisValid = validatePais()
     const whatsappValid = validateWhatsApp()
     const dniValid = validateDni()
     const passwordValid = validatePassword()
     const repeatPasswordValid = validateRepeatPassword()
     const fechaNacimientoValid = validateFechaNacimiento()
     const medioEncontradoValid = validateMedioEncontrado()
-    const departamentoValid = validateDepartamento()
-    const provinciaValid = validateProvincia()
-    const distritoValid = validateDistrito()
+    const departamentoValid = isPeru.value ? validateDepartamento() : true
+    const provinciaValid = isPeru.value ? validateProvincia() : true
+    const distritoValid = isPeru.value ? validateDistrito() : true
     // Retornar true solo si todos los campos son válidos
-    return nombreValid && emailValid && whatsappValid && dniValid && passwordValid && repeatPasswordValid && fechaNacimientoValid && medioEncontradoValid && departamentoValid && provinciaValid && distritoValid
+    return nombreValid && emailValid && paisValid && whatsappValid && dniValid && passwordValid && repeatPasswordValid && fechaNacimientoValid && medioEncontradoValid && departamentoValid && provinciaValid && distritoValid
 }
 
 
@@ -751,13 +953,23 @@ async function handleRegister() {
             password: registerData.value.password,
             repeatPassword: registerData.value.repeatPassword,
             dni: registerData.value.dni,
+            tipo_documento: registerData.value.tipo_documento || 'DNI',
             fechaNacimiento: registerData.value.fechaNacimiento,
             no_como_entero: registerData.value.no_como_entero || null,
             no_otros_como_entero_empresa: registerData.value.no_otros_como_entero_empresa || null,
-            departamento: parseInt(registerData.value.departamento) || 1,
-            provincia: parseInt(registerData.value.provincia) || 1,
-            distrito: parseInt(registerData.value.distrito) || 1,
-            pais_id: registerData.value.pais_id ? parseInt(registerData.value.pais_id) : null
+            departamento: isPeru.value && registerData.value.departamento
+                ? parseInt(String(registerData.value.departamento))
+                : null,
+            provincia: isPeru.value && registerData.value.provincia
+                ? parseInt(String(registerData.value.provincia))
+                : null,
+            distrito: isPeru.value && registerData.value.distrito
+                ? parseInt(String(registerData.value.distrito))
+                : null,
+            pais_id: registerData.value.pais_id ? parseInt(String(registerData.value.pais_id)) : null,
+            whatsapp_pais_id: registerData.value.whatsapp_pais_id
+                ? parseInt(String(registerData.value.whatsapp_pais_id))
+                : (registerData.value.pais_id ? parseInt(String(registerData.value.pais_id)) : null)
         }
 
         const response = await register(requestData)
@@ -795,15 +1007,21 @@ function closeRegister() {
         whatsapp: '', 
         password: '', 
         repeatPassword: '', 
-        dni: '', 
+        dni: '',
+        tipo_documento: 'DNI',
         fechaNacimiento: '', 
         no_como_entero: null,
         no_otros_como_entero_empresa: '',
         departamento: null,
         provincia: null,
         distrito: null,
-        pais_id: null
+        pais_id: null,
+        whatsapp_pais_id: null
     }
+    selectedTipoDocumento.value = tipoDocumentoOptions[0]
+    selectedPais.value = undefined
+    selectedWhatsappPais.value = undefined
+    applyDefaultPais()
     fieldErrors.value = {
         nombre: '',
         email: '',
@@ -864,12 +1082,14 @@ const validateMedioEncontrado = () => {
     }
 
     // Si el usuario seleccionó "Otros" (id = 6), debe especificar el medio
-    if (Number(registerData.value.no_como_entero) === 6) {
+    if (isOtrosMedio.value) {
         if (!registerData.value.no_otros_como_entero_empresa || !registerData.value.no_otros_como_entero_empresa.trim()) {
             fieldErrors.value.no_otros_como_entero_empresa = 'Por favor especifica cómo nos encontraste'
             return false
         }
         fieldErrors.value.no_otros_como_entero_empresa = ''
+    } else {
+        registerData.value.no_otros_como_entero_empresa = ''
     }
 
     fieldErrors.value.no_como_entero = ''
@@ -954,13 +1174,29 @@ onMounted(async () => {
 
     try {
         await getPaises()
+        applyDefaultPais()
     } catch {
-        // País es opcional; no bloquear el registro
+        // País es requerido para WhatsApp; avisar si falla
+        showError('Error al cargar países', 'No se pudieron cargar los países. Intenta recargar la página.')
+    }
+
+    try {
+        await getMediosEncontrado()
+    } catch {
+        // Fallback v2 ya está en el composable
     }
 })
 
 </script>
 <style>
+.register-form :deep(button),
+.register-form :deep(input),
+.register-form :deep([role='combobox']),
+.register-form :deep([data-slot='base']),
+.register-form :deep(select) {
+    cursor: pointer;
+}
+
 input[type="number"] {
     -webkit-appearance: none;
     -moz-appearance: textfield;
