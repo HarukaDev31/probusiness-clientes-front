@@ -104,13 +104,30 @@
                         </span>
                     </label>
                     <div class="flex gap-2">
-                        <USelect
+                        <USelectMenu
                             id="whatsapp_pais_id"
-                            v-model="registerData.whatsapp_pais_id"
+                            v-model="selectedWhatsappPais"
                             :items="whatsappPaisItems"
-                            class="w-40 shrink-0"
+                            placeholder="+51"
+                            searchable
+                            :search-input="{ placeholder: 'Código o país...' }"
+                            class="w-[9.5rem] shrink-0 cursor-pointer"
+                            :ui="{ content: 'max-h-60 w-64', base: 'cursor-pointer' }"
                             @update:model-value="onWhatsappPaisChange"
-                        />
+                        >
+                            <template #default>
+                                <span class="inline-flex items-center gap-1.5 truncate">
+                                    <img
+                                        v-if="selectedWhatsappPais?.flag_url"
+                                        :src="selectedWhatsappPais.flag_url"
+                                        alt=""
+                                        class="h-4 w-6 rounded-sm object-cover"
+                                        loading="lazy"
+                                    />
+                                    <span>+{{ selectedWhatsappPais?.phone_code || '—' }}</span>
+                                </span>
+                            </template>
+                        </USelectMenu>
                         <UInput 
                             id="whatsapp" 
                             v-model="registerData.whatsapp" 
@@ -553,17 +570,21 @@ function showWarning(title: string, message: string) {
     showError(title, message)
 }
 
-// Países con código telefónico para el selector de WhatsApp
+// Países con código telefónico para el selector de WhatsApp (con bandera y búsqueda)
+const selectedWhatsappPais = ref<any>(undefined)
 const whatsappPaisItems = computed(() =>
     (paises.value || [])
         .filter((p: any) => p.phone_code)
-        .map((p: any) => ({ label: `${p.iso2 ? p.iso2.toUpperCase() + ' ' : ''}+${p.phone_code}`, value: p.value }))
+        .map((p: any) => ({
+            ...p,
+            label: `${p.label} (+${p.phone_code})`,
+            avatar: p.flag_url ? { src: p.flag_url, alt: p.label } : undefined
+        }))
 )
 const PERU_PHONE_CODE = '51'
-const whatsappPhoneCode = computed(() => {
-    const p = (paises.value || []).find((x: any) => Number(x.value) === Number(registerData.value.whatsapp_pais_id))
-    return p?.phone_code ? String(p.phone_code) : PERU_PHONE_CODE
-})
+const whatsappPhoneCode = computed(() =>
+    selectedWhatsappPais.value?.phone_code ? String(selectedWhatsappPais.value.phone_code) : PERU_PHONE_CODE
+)
 const isWhatsappPeru = computed(() => whatsappPhoneCode.value === PERU_PHONE_CODE)
 
 // Función para formatear el número de WhatsApp (solo dígitos; 9 si es Perú, 15 máx. otros países)
@@ -576,7 +597,8 @@ const formatWhatsApp = (value) => {
     return cleaned
 }
 
-const onWhatsappPaisChange = () => {
+const onWhatsappPaisChange = (pais?: any) => {
+    registerData.value.whatsapp_pais_id = pais?.value ?? null
     registerData.value.whatsapp = formatWhatsApp(registerData.value.whatsapp)
     fieldErrors.value.whatsapp = ''
 }
@@ -985,7 +1007,10 @@ onMounted(async () => {
     try {
         await getPaises()
         const peru = (paises.value || []).find((x: any) => String(x.phone_code) === PERU_PHONE_CODE)
-        if (peru && !registerData.value.whatsapp_pais_id) registerData.value.whatsapp_pais_id = peru.value
+        if (peru && !registerData.value.whatsapp_pais_id) {
+            selectedWhatsappPais.value = whatsappPaisItems.value.find((x: any) => x.value === peru.value)
+            registerData.value.whatsapp_pais_id = peru.value
+        }
     } catch {
         // País es opcional; no bloquear el registro
     }
