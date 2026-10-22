@@ -118,7 +118,6 @@
                             :class="{ 'border-red-500': fieldErrors.whatsapp }"
                             :placeholder="isWhatsappPeru ? '999 999 999' : 'Número sin código de país'"
                             inputmode="numeric"
-                            @input="onWhatsappInput"
                             @blur="validateWhatsApp"
                         />
                     </div>
@@ -577,15 +576,16 @@ const formatWhatsApp = (value) => {
     return cleaned
 }
 
-const onWhatsappInput = () => {
-    registerData.value.whatsapp = formatWhatsApp(registerData.value.whatsapp)
-    fieldErrors.value.whatsapp = ''
-}
-
 const onWhatsappPaisChange = () => {
     registerData.value.whatsapp = formatWhatsApp(registerData.value.whatsapp)
     fieldErrors.value.whatsapp = ''
 }
+
+watch(() => registerData.value.whatsapp, (val) => {
+    const formatted = formatWhatsApp(val)
+    if (formatted !== val) registerData.value.whatsapp = formatted
+    else fieldErrors.value.whatsapp = ''
+})
 
 // Función para manejar el input del DNI
 const handleDniInput = () => {
