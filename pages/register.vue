@@ -103,20 +103,27 @@
                             WhatsApp
                         </span>
                     </label>
-                    <UInput 
-                        id="whatsapp" 
-                        v-model="registerData.whatsapp" 
-                        class="w-full"
-                        :class="{ 'border-red-500': fieldErrors.whatsapp }"
-                        placeholder="999 999 999"
-                        v-maska="'#########'"
-                        @UInput="registerData.whatsapp = formatWhatsApp($event.target.value)"
-                        @blur="validateWhatsApp"
-                        @input="fieldErrors.whatsapp = ''"
-                         
-                    />
+                    <div class="flex gap-2">
+                        <USelect
+                            id="whatsapp_pais_id"
+                            v-model="registerData.whatsapp_pais_id"
+                            :items="whatsappPaisItems"
+                            class="w-40 shrink-0"
+                            @update:model-value="onWhatsappPaisChange"
+                        />
+                        <UInput 
+                            id="whatsapp" 
+                            v-model="registerData.whatsapp" 
+                            class="w-full"
+                            :class="{ 'border-red-500': fieldErrors.whatsapp }"
+                            :placeholder="isWhatsappPeru ? '999 999 999' : 'Número sin código de país'"
+                            inputmode="numeric"
+                            @input="onWhatsappInput"
+                            @blur="validateWhatsApp"
+                        />
+                    </div>
                     <p v-if="fieldErrors.whatsapp" class="text-red-500 text-xs mt-1">{{ fieldErrors.whatsapp }}</p>
-                    <p v-else class="text-xs text-gray-500 mt-1">(*) Solo números (9 dígitos)</p>
+                    <p v-else class="text-xs text-gray-500 mt-1">{{ isWhatsappPeru ? '(*) Solo números (9 dígitos)' : '(*) Solo números, sin el código de país' }}</p>
                 </div>
                 <!--Form Field dni-->
                 <div class="relative">
@@ -444,7 +451,8 @@ const registerData = ref({
     departamento: null,
     provincia: null,
     distrito: null,
-    pais_id: null
+    pais_id: null,
+    whatsapp_pais_id: null
 })
 
 // Estados de validación para cada campo
@@ -546,17 +554,37 @@ function showWarning(title: string, message: string) {
     showError(title, message)
 }
 
-// Función para formatear el número de WhatsApp
+// Países con código telefónico para el selector de WhatsApp
+const whatsappPaisItems = computed(() =>
+    (paises.value || [])
+        .filter((p: any) => p.phone_code)
+        .map((p: any) => ({ label: `${p.iso2 ? p.iso2.toUpperCase() + ' ' : ''}+${p.phone_code}`, value: p.value }))
+)
+const PERU_PHONE_CODE = '51'
+const whatsappPhoneCode = computed(() => {
+    const p = (paises.value || []).find((x: any) => Number(x.value) === Number(registerData.value.whatsapp_pais_id))
+    return p?.phone_code ? String(p.phone_code) : PERU_PHONE_CODE
+})
+const isWhatsappPeru = computed(() => whatsappPhoneCode.value === PERU_PHONE_CODE)
+
+// Función para formatear el número de WhatsApp (solo dígitos; 9 si es Perú, 15 máx. otros países)
 const formatWhatsApp = (value) => {
-    // Remover todos los caracteres no numéricos (solo números)
-    let cleaned = value.replace(/[^\d]/g, '')
-
-    // Limitar a 9 dígitos (número peruano sin código de país)
-    if (cleaned.length > 9) {
-        cleaned = cleaned.substring(0, 9)
+    let cleaned = String(value || '').replace(/[^\d]/g, '')
+    const max = isWhatsappPeru.value ? 9 : 15
+    if (cleaned.length > max) {
+        cleaned = cleaned.substring(0, max)
     }
-
     return cleaned
+}
+
+const onWhatsappInput = () => {
+    registerData.value.whatsapp = formatWhatsApp(registerData.value.whatsapp)
+    fieldErrors.value.whatsapp = ''
+}
+
+const onWhatsappPaisChange = () => {
+    registerData.value.whatsapp = formatWhatsApp(registerData.value.whatsapp)
+    fieldErrors.value.whatsapp = ''
 }
 
 // Función para manejar el input del DNI
@@ -640,13 +668,13 @@ const validateEmail = () => {
 
 const validateWhatsApp = () => {
     trackRegisterField('whatsapp', 'blur')
-    const whatsappRegex = /^\d{9}$/
+    const whatsappRegex = isWhatsappPeru.value ? /^\d{9}$/ : /^\d{6,15}$/
     if (!registerData.value.whatsapp.trim()) {
         fieldErrors.value.whatsapp = 'El número de WhatsApp es requerido'
         return false
     }
     if (!whatsappRegex.test(registerData.value.whatsapp)) {
-        fieldErrors.value.whatsapp = 'Ingresa un número de WhatsApp válido de 9 dígitos'
+        fieldErrors.value.whatsapp = isWhatsappPeru.value ? 'Ingresa un número de WhatsApp válido de 9 dígitos' : 'Ingresa un número de WhatsApp válido (6 a 15 dígitos, sin código de país)'
         return false
     }
     fieldErrors.value.whatsapp = ''
@@ -748,6 +776,7 @@ async function handleRegister() {
             apellido: registerData.value.apellido,
             email: registerData.value.email,
             whatsapp: registerData.value.whatsapp,
+            whatsapp_pais_id: registerData.value.whatsapp_pais_id ? parseInt(registerData.value.whatsapp_pais_id) : null,
             password: registerData.value.password,
             repeatPassword: registerData.value.repeatPassword,
             dni: registerData.value.dni,
@@ -802,7 +831,8 @@ function closeRegister() {
         departamento: null,
         provincia: null,
         distrito: null,
-        pais_id: null
+        pais_id: null,
+        whatsapp_pais_id: registerData.value.whatsapp_pais_id
     }
     fieldErrors.value = {
         nombre: '',
@@ -954,6 +984,8 @@ onMounted(async () => {
 
     try {
         await getPaises()
+        const peru = (paises.value || []).find((x: any) => String(x.phone_code) === PERU_PHONE_CODE)
+        if (peru && !registerData.value.whatsapp_pais_id) registerData.value.whatsapp_pais_id = peru.value
     } catch {
         // País es opcional; no bloquear el registro
     }

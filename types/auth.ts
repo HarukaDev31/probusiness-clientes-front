@@ -30,6 +30,7 @@ export interface RegisterCredentials {
   apellido: string
   email: string
   whatsapp: string
+  whatsapp_pais_id?: number | null
   password: string
   repeatPassword: string
   dni: string
