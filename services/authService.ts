@@ -256,6 +256,7 @@ class AuthService {
         lastname: credentials.apellido,
         email: credentials.email,
         whatsapp: credentials.whatsapp,
+        whatsapp_pais_id: credentials.whatsapp_pais_id,
         password: credentials.password,
         repeatPassword: credentials.repeatPassword,
         dni: credentials.dni,
