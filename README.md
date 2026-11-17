@@ -73,3 +73,8 @@ bun run preview
 ```
 
 Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+
+## Deploy beta (QA)
+- Prod: rama `master` → https://clientes.probusiness.pe (API de prod).
+- Beta: rama `qa` → https://qa--nimble-gumption-e62d9f.netlify.app. Los branch deploys usan `NUXT_API_BASE_URL=https://qa-intranetback.probusiness.pe` (variable de Netlify con contexto «branch-deploy»).
+- Formulario T-T de Pago a Proveedor: `/pago-proveedor/formulario-tt/{token}` (vive en `qa`; pasa a prod con el PR de qa → master). El back arma el link con `APP_URL_CLIENTES` (prod: clientes.probusiness.pe; QA: el beta de arriba).
