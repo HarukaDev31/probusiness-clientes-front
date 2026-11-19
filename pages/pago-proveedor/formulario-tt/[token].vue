@@ -105,19 +105,21 @@
             </div>
           </section>
 
+          <!-- #2353/#2354: abierto por el asesor («Abrir como cliente»): solo vista, la autorización es del cliente. -->
+          <UAlert v-if="vistaAsesor" color="warning" variant="subtle" title="Vista del asesor" description="Solo el cliente puede autorizar y enviar estos datos desde el enlace que recibe por WhatsApp." />
           <section class="seccion">
-            <label class="casilla">
-              <input v-model="autorizo" type="checkbox">
+            <label class="casilla" :class="vistaAsesor ? 'opacity-50' : ''">
+              <input v-model="autorizo" type="checkbox" :disabled="vistaAsesor">
               <span>Autorizo que estos datos sean utilizados para realizar el pago al proveedor. <span class="ayuda">Revisa que sean correctos: un dato errado puede demorar o devolver el pago.</span></span>
             </label>
           </section>
 
           <UAlert v-if="errorEnvio" color="error" variant="subtle" :title="errorEnvio" />
 
-          <button type="submit" class="w-full rounded-lg bg-orange-500 p-3 text-sm font-bold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50" :disabled="!autorizo || enviando">
+          <button type="submit" class="w-full rounded-lg bg-orange-500 p-3 text-sm font-bold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50" :disabled="vistaAsesor || !autorizo || enviando">
             {{ enviando ? 'Enviando…' : enRevision ? 'Autorizar y enviar datos' : 'Enviar datos' }}
           </button>
-          <p v-if="!autorizo" class="text-center text-xs text-gray-500">Marca la autorización para poder enviar los datos.</p>
+          <p v-if="!autorizo && !vistaAsesor" class="text-center text-xs text-gray-500">Marca la autorización para poder enviar los datos.</p>
         </form>
       </template>
     </div>
@@ -163,6 +165,8 @@ const camposBeneficiario: Campo[] = [
 
 const route = useRoute()
 const token = String(route.params.token)
+// El asesor abre el formulario con ?vista=asesor: lo ve como el cliente, pero no puede autorizar ni enviar.
+const vistaAsesor = computed(() => route.query.vista === 'asesor')
 const cargando = ref(true)
 const enviando = ref(false)
 const editando = ref(false)
@@ -251,6 +255,7 @@ function validar() {
 
 async function enviar() {
   errorEnvio.value = ''
+  if (vistaAsesor.value) return
   if (!validar()) return
   enviando.value = true
   try {
