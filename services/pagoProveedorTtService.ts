@@ -1,7 +1,12 @@
 /**
  * Formulario público de datos bancarios (T-T) de pago a proveedor. Se accede por enlace, sin sesión.
  */
-import { getOrgKeyHeader } from '~/utils/orgKey'
+
+/** El formulario público no exige X-Org-Key; si el sitio la tiene configurada, se envía igual. */
+function getOrgKeyHeader(): Record<string, string> {
+  const key = String((useRuntimeConfig().public as Record<string, unknown>).orgKey || '').trim()
+  return key ? { 'X-Org-Key': key } : {}
+}
 
 export interface DatosBancariosTt {
   beneficiario_nombre: string
