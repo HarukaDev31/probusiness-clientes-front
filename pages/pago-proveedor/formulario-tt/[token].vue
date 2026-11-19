@@ -17,7 +17,11 @@
       <div v-else-if="mensajeFinal" class="rounded-xl border border-gray-200 bg-white p-8 text-center">
         <div class="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-green-100 text-2xl text-green-700">✓</div>
         <h1 class="mb-1.5 text-xl font-bold">{{ tituloFinal }}</h1>
-        <p class="text-sm leading-relaxed text-gray-500">{{ mensajeFinal }}</p>
+        <!-- #2276: el código del proveedor en negrita y, si está registrado, su nombre entre paréntesis. -->
+        <p v-if="finalConProveedor" class="text-sm leading-relaxed text-gray-500">
+          Ya podemos preparar tu pago a <strong class="text-gray-800">{{ formulario?.proveedor }}</strong><template v-if="formulario?.nombre_proveedor"> ({{ formulario.nombre_proveedor }})</template>. {{ mensajeFinal }}
+        </p>
+        <p v-else class="text-sm leading-relaxed text-gray-500">{{ mensajeFinal }}</p>
       </div>
 
       <template v-else-if="formulario">
@@ -166,6 +170,7 @@ const autorizo = ref(false)
 const errorCarga = ref('')
 const errorEnvio = ref('')
 const mensajeFinal = ref('')
+const finalConProveedor = ref(false)
 const tituloFinal = ref('')
 const formulario = ref<FormularioTt | null>(null)
 const errores = reactive<Partial<Record<ClaveTexto, string>>>({})
@@ -252,8 +257,10 @@ async function enviar() {
     const revision = enRevision.value
     const respuesta = await enviarFormularioTt(token, { ...datos, autorizo: autorizo.value })
     tituloFinal.value = revision ? '¡Gracias! Autorizaste los datos' : '¡Gracias! Recibimos los datos'
-    mensajeFinal.value = `Ya podemos preparar tu pago a ${formulario.value?.proveedor || 'tu proveedor'}. Te avisaremos por WhatsApp cuando lo ejecutemos.`
-    if (!respuesta?.data) mensajeFinal.value = 'Recibimos tus datos.'
+    finalConProveedor.value = !!formulario.value?.proveedor && !!respuesta?.data
+    mensajeFinal.value = finalConProveedor.value
+      ? 'Te avisaremos por WhatsApp cuando lo ejecutemos.'
+      : (respuesta?.data ? 'Ya podemos preparar tu pago a tu proveedor. Te avisaremos por WhatsApp cuando lo ejecutemos.' : 'Recibimos tus datos.')
   } catch (error: any) {
     errorEnvio.value = error?.data?.message || 'No se pudo enviar el formulario. Intenta de nuevo.'
   } finally {
@@ -268,7 +275,10 @@ onMounted(async () => {
     cargarDatos(respuesta.data.datos)
     if (respuesta.data.bloqueado) {
       tituloFinal.value = 'Estos datos ya fueron autorizados'
-      mensajeFinal.value = `Ya podemos preparar tu pago a ${respuesta.data.proveedor || 'tu proveedor'}. Si necesitas corregir algo, escríbele a tu asesor.`
+      finalConProveedor.value = !!respuesta.data.proveedor
+      mensajeFinal.value = finalConProveedor.value
+        ? 'Si necesitas corregir algo, escríbele a tu asesor.'
+        : 'Ya podemos preparar tu pago a tu proveedor. Si necesitas corregir algo, escríbele a tu asesor.'
     }
   } catch (error: any) {
     errorCarga.value = error?.data?.message || 'Comprueba que el enlace sea correcto.'
