@@ -1,3 +1,4 @@
+import { authStorage } from '~/utils/authStorage'
 import type { ErrorResponse } from '~/types/auth'
 
 export default defineNuxtPlugin(() => {
@@ -14,7 +15,7 @@ export default defineNuxtPlugin(() => {
   // Función para obtener el token de autenticación
   const getAuthToken = (): string | null => {
     if (process.client) {
-      return localStorage.getItem('auth_token')
+      return authStorage().getItem('auth_token')
     }
     return null
   }

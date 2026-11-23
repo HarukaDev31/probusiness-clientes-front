@@ -5,6 +5,8 @@
 
     <!-- Main Content -->
     <div class="flex-1 flex flex-col transition-all duration-300 w-80" :class="sidebarVisible ? 'lg:ml-70' : ''">
+      <VerComoClienteBanner />
+
       <!-- Top Header -->
       <header 
       class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 lg:hidden">
@@ -46,6 +48,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuth } from '../composables/auth/useAuth'
+import VerComoClienteBanner from '../components/VerComoClienteBanner.vue'
 import SidebarMenu from '../components/SidebarMenu.vue'
 import SessionExpiredModal from '../components/SessionExpiredModal.vue'
 import GlobalNotifications from '../components/GlobalNotifications.vue'

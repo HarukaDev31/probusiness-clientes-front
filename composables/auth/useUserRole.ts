@@ -1,3 +1,4 @@
+import { authStorage } from '../../utils/authStorage'
 import { ref, computed } from 'vue'
 import { ROLES } from '../constants/roles'
 
@@ -99,7 +100,7 @@ const currentId = computed(() => {
       loading.value = true
       error.value = null
 
-      const authUser = localStorage.getItem('auth_user')
+      const authUser = authStorage().getItem('auth_user')
       if (!authUser) {
         error.value = 'No se encontraron datos del usuario'
         return

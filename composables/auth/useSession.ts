@@ -1,3 +1,4 @@
+import { authStorage } from '../../utils/authStorage'
 import { ref } from 'vue'
 
 export const useSession = () => {
@@ -7,8 +8,8 @@ export const useSession = () => {
   const clearSession = () => {
     if (process.client) {
       // Limpiar localStorage
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('user_data')
+      authStorage().removeItem('auth_token')
+      authStorage().removeItem('user_data')
       
       // Limpiar sessionStorage si lo usas
       sessionStorage.clear()
@@ -39,7 +40,7 @@ export const useSession = () => {
   // Función para verificar si hay token válido
   const hasValidToken = (): boolean => {
     if (process.client) {
-      const token = localStorage.getItem('auth_token')
+      const token = authStorage().getItem('auth_token')
       return !!token
     }
     return false
@@ -48,7 +49,7 @@ export const useSession = () => {
   // Función para obtener el token
   const getToken = (): string | null => {
     if (process.client) {
-      return localStorage.getItem('auth_token')
+      return authStorage().getItem('auth_token')
     }
     return null
   }
@@ -56,14 +57,14 @@ export const useSession = () => {
   // Función para establecer el token
   const setToken = (token: string) => {
     if (process.client) {
-      localStorage.setItem('auth_token', token)
+      authStorage().setItem('auth_token', token)
     }
   }
 
   // Función para obtener datos del usuario
   const getUserData = () => {
     if (process.client) {
-      const userData = localStorage.getItem('user_data')
+      const userData = authStorage().getItem('user_data')
       return userData ? JSON.parse(userData) : null
     }
     return null
@@ -72,7 +73,7 @@ export const useSession = () => {
   // Función para establecer datos del usuario
   const setUserData = (userData: any) => {
     if (process.client) {
-      localStorage.setItem('user_data', JSON.stringify(userData))
+      authStorage().setItem('user_data', JSON.stringify(userData))
     }
   }
 

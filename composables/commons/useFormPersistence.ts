@@ -1,3 +1,4 @@
+import { authStorage } from '../../utils/authStorage'
 import { ref, watch } from 'vue'
 
 export const useFormPersistence = (formType: 'lima' | 'provincia', consolidadoId: string | number) => {
@@ -12,7 +13,7 @@ export const useFormPersistence = (formType: 'lima' | 'provincia', consolidadoId
           currentStep,
           timestamp: Date.now()
         }
-        localStorage.setItem(storageKey, JSON.stringify(state))
+        authStorage().setItem(storageKey, JSON.stringify(state))
       } catch (error) {
         console.warn('Error al guardar estado del formulario:', error)
       }
@@ -23,7 +24,7 @@ export const useFormPersistence = (formType: 'lima' | 'provincia', consolidadoId
   const loadFormState = () => {
     if (process.client) {
       try {
-        const saved = localStorage.getItem(storageKey)
+        const saved = authStorage().getItem(storageKey)
         if (saved) {
           const state = JSON.parse(saved)
           // Verificar que el estado no sea muy antiguo (24 horas)
@@ -46,7 +47,7 @@ export const useFormPersistence = (formType: 'lima' | 'provincia', consolidadoId
   const clearFormState = () => {
     if (process.client) {
       try {
-        localStorage.removeItem(storageKey)
+        authStorage().removeItem(storageKey)
       } catch (error) {
         console.warn('Error al limpiar estado del formulario:', error)
       }
@@ -57,10 +58,10 @@ export const useFormPersistence = (formType: 'lima' | 'provincia', consolidadoId
   const clearAllFormStates = () => {
     if (process.client) {
       try {
-        const keys = Object.keys(localStorage)
+        const keys = Object.keys(authStorage())
         keys.forEach(key => {
           if (key.startsWith('form_lima_') || key.startsWith('form_provincia_')) {
-            localStorage.removeItem(key)
+            authStorage().removeItem(key)
           }
         })
       } catch (error) {
