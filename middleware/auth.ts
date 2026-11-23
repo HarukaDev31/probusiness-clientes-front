@@ -1,3 +1,4 @@
+import { authStorage, esVerComoCliente } from '../utils/authStorage'
 import AuthService from '../services/authService'
 import { useSession } from '../composables/auth/useSession'
 
@@ -13,12 +14,14 @@ export default defineNuxtRouteMiddleware((to) => {
   const { hasValidToken } = useSession()
 
   if (!hasValidToken() || !authService.isAuthenticated()) {
-    localStorage.removeItem('auth_token')
-    localStorage.removeItem('auth_user')
-    localStorage.removeItem('auth_menu')
+    authStorage().removeItem('auth_token')
+    authStorage().removeItem('auth_user')
+    authStorage().removeItem('auth_menu')
     localStorage.setItem('return_to', to.path)
     return navigateTo('/login')
   }
+
+  if (esVerComoCliente()) return
 
   const returnTo = localStorage.getItem('return_to')
   if (returnTo) {

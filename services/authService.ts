@@ -1,3 +1,4 @@
+import { activarVerComoCliente, authStorage, desactivarVerComoCliente } from '../utils/authStorage'
 import type { User, LoginCredentials as _LoginCredentials, LoginResponse as _LoginResponse, ApiLoginResponse, RegisterCredentials, RegisterResponse } from '../types/auth'
 
 interface ApiPlugin {
@@ -75,9 +76,9 @@ class AuthService {
 
   private initializeFromStorage(): void {
     if (process.client) {
-      const storedToken = localStorage.getItem('auth_token')
-      const storedUser = localStorage.getItem('auth_user')
-      const storedMenu = localStorage.getItem('auth_menu')
+      const storedToken = authStorage().getItem('auth_token')
+      const storedUser = authStorage().getItem('auth_user')
+      const storedMenu = authStorage().getItem('auth_menu')
 
       if (storedToken && storedUser) {
         this.token = storedToken
@@ -92,22 +93,23 @@ class AuthService {
   private saveToStorage(): void {
     if (process.client) {
       if (this.token) {
-        localStorage.setItem('auth_token', this.token)
+        authStorage().setItem('auth_token', this.token)
       }
       if (this.currentUser) {
-        localStorage.setItem('auth_user', JSON.stringify(this.currentUser))
+        authStorage().setItem('auth_user', JSON.stringify(this.currentUser))
       }
       if (this.menu) {
-        localStorage.setItem('auth_menu', JSON.stringify(this.menu))
+        authStorage().setItem('auth_menu', JSON.stringify(this.menu))
       }
     }
   }
 
   private clearStorage(): void {
     if (process.client) {
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('auth_user')
-      localStorage.removeItem('auth_menu')
+      authStorage().removeItem('auth_token')
+      authStorage().removeItem('auth_user')
+      authStorage().removeItem('auth_menu')
+      desactivarVerComoCliente()
     }
   }
 
@@ -182,67 +184,93 @@ class AuthService {
         No_Password: credentials.password
       })
 
-      if (response.success && response.token && response.user) {
-        const user: AuthUser = {
-          id: response.user.id,
-          email: response.user.email || response.user.No_Usuario,
-          name: response.user.name,
-          role: response.user.role || 'user',
-          avatar: response.user.photoUrl,
-          lastLogin: response.user.Fe_Creacion,
-          isActive: response.user.Nu_Estado === 1,
-          dni: response.user.dni,
-          phone: response.user.phone,
-          country: response.user.country,
-          city: response.user.city,
-          goals: response.user.goals,
-          domicilioFiscal: response.user.domicilio_fiscal,
-          empresa: response.user.empresa,
-          fechaNacimiento: response.user.fechaNacimiento, 
-          raw: response.user.raw
-        }
-        const token = response.token
-        const menu: AuthMenu[] = response.menus || []
-        console.log(menu)
-        this.currentUser = user
-        this.token = token
-        // Si show_father=0, quitar hijos solo cuando el ítem tiene una ruta real (no es un encabezado #).
-        // Así los ítems con url_intranet_v2 '#' siguen desglosando su menú si tienen Hijos.
-        menu.forEach(
-          (item) => {
-            const isPlaceholderRoute = !item.No_Menu_Url || item.No_Menu_Url === '#' || item.No_Menu_Url === ''
-              || !item.url_intranet_v2 || item.url_intranet_v2 === '#' || item.url_intranet_v2 === ''
-            if (item.show_father == 0 && !isPlaceholderRoute) {
-              item.Hijos = []
-            } else {
-              item.Hijos = item.Hijos || []
-            }
-            item.route = item.url_intranet_v2 || ''
-          }
-        )
-        this.menu = menu
-        this.saveToStorage()
-
-        return {
-          success: true,
-          data: {
-            user: user as any,
-            token
-          },
-          message: response.message || 'Login exitoso'
-        }
-      } else {
-        return {
-          success: false,
-          data: null,
-          error: response.message || 'Credenciales incorrectas'
-        }
-      }
+      return this.aplicarSesionCliente(response)
     } catch (error: any) {
       return {
         success: false,
         data: null,
         error: error.message || 'Error de conexión'
+      }
+    }
+  }
+
+  /** Canjea el código de «Ver como cliente». La sesión queda solo en esta pestaña. */
+  async loginVerComoCliente(codigo: string): Promise<_LoginResponse> {
+    activarVerComoCliente()
+    try {
+      if (!this.nuxtApp) throw new Error('Nuxt app not initialized')
+
+      const response = await this.nuxtApp.$api.call('/api/auth/clientes/ver-como', {
+        method: 'POST',
+        body: { codigo }
+      })
+      const result = this.aplicarSesionCliente(response)
+      if (!result.success) desactivarVerComoCliente()
+      return result
+    } catch (error: any) {
+      desactivarVerComoCliente()
+      return {
+        success: false,
+        data: null,
+        error: error?.data?.message || 'Error de conexión'
+      }
+    }
+  }
+
+  private aplicarSesionCliente(response: any): _LoginResponse {
+    if (response.success && response.token && response.user) {
+      const user: AuthUser = {
+        id: response.user.id,
+        email: response.user.email || response.user.No_Usuario,
+        name: response.user.name,
+        role: response.user.role || 'user',
+        avatar: response.user.photoUrl,
+        lastLogin: response.user.Fe_Creacion,
+        isActive: response.user.Nu_Estado === 1,
+        dni: response.user.dni,
+        phone: response.user.phone,
+        country: response.user.country,
+        city: response.user.city,
+        goals: response.user.goals,
+        domicilioFiscal: response.user.domicilio_fiscal,
+        empresa: response.user.empresa,
+        fechaNacimiento: response.user.fechaNacimiento, 
+        raw: response.user.raw
+      }
+      const token = response.token
+      const menu: AuthMenu[] = response.menus || []
+      this.currentUser = user
+      this.token = token
+      // Si show_father=0, quitar hijos solo cuando el ítem tiene una ruta real (no es un encabezado #).
+      // Así los ítems con url_intranet_v2 '#' siguen desglosando su menú si tienen Hijos.
+      menu.forEach(
+        (item) => {
+          const isPlaceholderRoute = !item.No_Menu_Url || item.No_Menu_Url === '#' || item.No_Menu_Url === ''
+            || !item.url_intranet_v2 || item.url_intranet_v2 === '#' || item.url_intranet_v2 === ''
+          if (item.show_father == 0 && !isPlaceholderRoute) {
+            item.Hijos = []
+          } else {
+            item.Hijos = item.Hijos || []
+          }
+          item.route = item.url_intranet_v2 || ''
+        }
+      )
+      this.menu = menu
+      this.saveToStorage()
+
+      return {
+        success: true,
+        data: {
+          user: user as any,
+          token
+        },
+        message: response.message || 'Login exitoso'
+      }
+    } else {
+      return {
+        success: false,
+        data: null,
+        error: response.message || 'Credenciales incorrectas'
       }
     }
   }

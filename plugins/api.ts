@@ -1,3 +1,4 @@
+import { authStorage } from '~/utils/authStorage'
 import type { ErrorResponse } from '~/types/auth'
 import { getOrgKeyHeader } from '~/utils/orgKey'
 
@@ -14,7 +15,7 @@ export default defineNuxtPlugin(() => {
 
   const getAuthToken = (): string | null => {
     if (process.client) {
-      return localStorage.getItem('auth_token')
+      return authStorage().getItem('auth_token')
     }
     return null
   }
